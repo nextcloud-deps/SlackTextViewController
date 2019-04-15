@@ -32,6 +32,8 @@ NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMove
 @property (nonatomic, strong) NSLayoutConstraint *editorContentViewHC;
 @property (nonatomic, strong) NSArray *charCountLabelVCs;
 
+@property (nonatomic, assign) UIEdgeInsets defaultInsets;
+
 @property (nonatomic, strong) UILabel *charCountLabel;
 
 @property (nonatomic) CGPoint previousOrigin;
@@ -82,7 +84,8 @@ NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMove
     
     self.autoHideRightButton = YES;
     self.editorContentViewHeight = 38.0;
-    self.contentInset = UIEdgeInsetsMake(5.0, 8.0, 5.0, 8.0);
+    self.defaultInsets = UIEdgeInsetsMake(5.0, 8.0, 5.0, 8.0);
+    self.contentInset = _defaultInsets;
 
     // Since iOS 11, it is required to call -layoutSubviews before adding custom subviews
     // so private UIToolbar subviews don't interfere on the touch hierarchy
@@ -129,6 +132,15 @@ NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMove
 + (BOOL)requiresConstraintBasedLayout
 {
     return YES;
+}
+
+- (void)safeAreaInsetsDidChange
+{
+    UIEdgeInsets safeAreaInsets = self.safeAreaInsets;
+    self.contentInset = UIEdgeInsetsMake(_defaultInsets.top + safeAreaInsets.top,
+                                         _defaultInsets.left + safeAreaInsets.left,
+                                         _defaultInsets.bottom + safeAreaInsets.bottom,
+                                         _defaultInsets.right + safeAreaInsets.right);
 }
 
 
@@ -447,6 +459,7 @@ NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMove
     // Add new constraints
     [self removeConstraints:self.constraints];
     [self slk_setupViewConstraints];
+    [self setCounterPosition:_counterPosition];
     
     // Add constant values and refresh layout
     [self slk_updateConstraintConstants];
@@ -486,10 +499,6 @@ NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMove
 
 - (void)setCounterPosition:(SLKCounterPosition)counterPosition
 {
-    if (self.counterPosition == counterPosition && self.charCountLabelVCs) {
-        return;
-    }
-    
     // Clears the previous constraints
     if (_charCountLabelVCs.count > 0) {
         [self removeConstraints:_charCountLabelVCs];
