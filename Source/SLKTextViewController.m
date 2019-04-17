@@ -235,6 +235,26 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (void)viewDidLayoutSubviews
 {
     [super viewDidLayoutSubviews];
+    
+    // Make sure that the background view of textInputBar (UIToolBar)
+    // covers the safe area bottom gap.
+    if (@available(iOS 11.0, *)) {
+        UIView *textInputBackgroudView = nil;
+        CGRect textInputContentFrame = CGRectZero;
+        for (UIView *subview in self.textInputbar.subviews) {
+            if ([NSStringFromClass([subview class]) containsString:@"UIBarBackground"]) {
+                textInputBackgroudView = subview;
+            }
+            if ([NSStringFromClass([subview class]) containsString:@"UIToolbarContentView"]) {
+                textInputContentFrame = subview.frame;
+            }
+        }
+        if (textInputBackgroudView && textInputContentFrame.size.height > 0) {
+            CGRect textInputBackgroudViewFrame = textInputBackgroudView.frame;
+            textInputBackgroudViewFrame.size.height = textInputContentFrame.size.height + self.view.safeAreaInsets.bottom;
+            [textInputBackgroudView setFrame: textInputBackgroudViewFrame];
+        }
+    }
 }
 
 - (void)viewSafeAreaInsetsDidChange
