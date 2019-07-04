@@ -15,7 +15,8 @@ typedef NS_ENUM(NSUInteger, SLKCounterStyle) {
     SLKCounterStyleNone,
     SLKCounterStyleSplit,
     SLKCounterStyleCountdown,
-    SLKCounterStyleCountdownReversed
+    SLKCounterStyleCountdownReversed,
+    SLKCounterStyleLimitExceeded
 };
 
 typedef NS_ENUM(NSUInteger, SLKCounterPosition) {

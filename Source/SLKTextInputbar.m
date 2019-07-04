@@ -585,6 +585,10 @@ NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMove
     {
         counter = [NSString stringWithFormat:@"%ld", (long)(self.maxCharCount - text.length)];
     }
+    if (self.counterStyle == SLKCounterStyleLimitExceeded)
+    {
+        counter = [self limitExceeded] ? [NSString stringWithFormat:@"%ld", (long)(self.maxCharCount - text.length)] : @"";
+    }
     
     self.charCountLabel.text = counter;
     self.charCountLabel.textColor = [self limitExceeded] ? self.charCountLabelWarningColor : self.charCountLabelNormalColor;
