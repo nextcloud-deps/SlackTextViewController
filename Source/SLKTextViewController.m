@@ -244,6 +244,11 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         for (UIView *subview in self.textInputbar.subviews) {
             if ([NSStringFromClass([subview class]) containsString:@"UIBarBackground"]) {
                 textInputBackgroudView = subview;
+                if (@available(iOS 13.0, *)) {
+                    // Workaround for iOS 13+ since UIToolbarContentView subview doesn't exist any more.
+                    // We just need to set to textInputBackgroudView a different frame than the current one, so the view is redrawn.
+                    textInputContentFrame = textInputBackgroudView.frame;
+                }
             }
             if ([NSStringFromClass([subview class]) containsString:@"UIToolbarContentView"]) {
                 textInputContentFrame = subview.frame;
