@@ -1483,12 +1483,16 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
             scrollView.contentOffset = CGPointMake(contentOffset.x, newOffset);
         }
         
-        // Only for this animation, we set bo to bounce since we want to give the impression that the text input is glued to the keyboard.
-        [self.view slk_animateLayoutIfNeededWithDuration:duration
-                                                  bounce:NO
-                                                 options:(curve<<16)|UIViewAnimationOptionLayoutSubviews|UIViewAnimationOptionBeginFromCurrentState
-                                              animations:animations
-                                              completion:NULL];
+        if (duration == 0) {
+            [self.view layoutIfNeeded];
+        } else {
+            // Only for this animation, we set bo to bounce since we want to give the impression that the text input is glued to the keyboard.
+            [self.view slk_animateLayoutIfNeededWithDuration:duration
+                                                      bounce:NO
+                                                     options:(curve<<16)|UIViewAnimationOptionLayoutSubviews|UIViewAnimationOptionBeginFromCurrentState
+                                                  animations:animations
+                                                  completion:NULL];
+        }
     }
     else {
         animations();
