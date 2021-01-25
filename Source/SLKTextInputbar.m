@@ -16,6 +16,7 @@
 #import "SLKUIConstants.h"
 
 NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMoveNotification";
+CGFloat const SLKTextInputbarMinButtonWidth = 44.0;
 
 @interface SLKTextInputbar ()
 
@@ -391,8 +392,10 @@ NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMove
             return 0.0;
         }
     }
-
-    return [self.rightButton intrinsicContentSize].width;
+    
+    CGFloat width = [self.rightButton intrinsicContentSize].width;
+    width = (width >= SLKTextInputbarMinButtonWidth) ? width : SLKTextInputbarMinButtonWidth;
+    return width;
 }
 
 - (CGFloat)slk_appropriateRightButtonMargin
@@ -722,6 +725,7 @@ NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMove
         CGSize leftButtonSize = [self.leftButton imageForState:self.leftButton.state].size;
         
         if (leftButtonSize.width > 0) {
+            leftButtonSize.width = (leftButtonSize.width >= SLKTextInputbarMinButtonWidth) ? leftButtonSize.width : SLKTextInputbarMinButtonWidth;
             self.leftButtonHC.constant = roundf(leftButtonSize.height);
             self.leftButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - leftButtonSize.height) / 2.0) + self.slk_contentViewHeight / 2.0;
         }
