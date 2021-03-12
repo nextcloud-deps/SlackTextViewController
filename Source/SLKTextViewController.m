@@ -711,6 +711,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         return;
     }
     
+    [_textInputbar layoutIfNeeded];
     CGFloat inputbarHeight = _textInputbar.appropriateHeight;
     
     _textInputbar.rightButton.enabled = [self canPressRightButton];
