@@ -1343,10 +1343,17 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         [self.textView slk_scrollToBottomAnimated:NO];
     }
     
+    NSIndexPath *lastVisibleRowIndexPath = [[self.tableView indexPathsForVisibleRows] lastObject];
+    
     // Disables the flag after the rotation animation is finished
     // Hacky but works.
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         self.transitioning = NO;
+        
+        if (lastVisibleRowIndexPath) {
+            [self.tableView scrollToRowAtIndexPath:lastVisibleRowIndexPath atScrollPosition:UITableViewScrollPositionBottom animated:NO];
+        }
+        
         [self.textView setNeedsLayout];
         [self.textView layoutIfNeeded];
     });
