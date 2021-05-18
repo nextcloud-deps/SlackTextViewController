@@ -383,7 +383,7 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
     
     CGRect rect = CGRectZero;
     rect.size.height = [self.placeholderLabel sizeThatFits:bounds.size].height;
-    rect.size.width = self.textContainer.size.width - padding*2.0;
+    rect.size.width = bounds.size.width - padding * 2.0 - self.textContainerInset.left - self.textContainerInset.right;
     rect.origin = UIEdgeInsetsInsetRect(bounds, self.textContainerInset).origin;
     rect.origin.x += padding;
     
