@@ -2329,6 +2329,21 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     [super updateViewConstraints];
 }
 
+- (void)updateViewToShowOrHideEmojiKeyboard:(CGFloat)height
+{
+    // Reset view controller if emoji keyboard is hidding
+    if (height == 0) {
+        [self slk_updateViewConstraints];
+        return;
+    }
+    
+    self.textInputbarHC.constant = 0.0;
+    self.keyboardHC.constant = height;
+    self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
+    
+    [super updateViewConstraints];
+}
+
 
 #pragma mark - Keyboard Command registration
 

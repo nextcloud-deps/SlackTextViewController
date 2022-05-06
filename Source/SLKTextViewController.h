@@ -236,6 +236,15 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
  */
 - (void)didChangeKeyboardStatus:(SLKKeyboardStatus)status;
 
+/**
+ Shrinks the view controller in order to create space for the emoji keyboard.
+ It also hides the text input bar.
+ 
+ @param height The height of the keyboard.
+ */
+
+- (void)updateViewToShowOrHideEmojiKeyboard:(CGFloat)height;
+
 
 #pragma mark - Interaction Notifications
 ///------------------------------------------------
