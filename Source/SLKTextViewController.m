@@ -2265,11 +2265,8 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     else if ([gesture isEqual:self.verticalPanGesture]) {
         return self.keyboardPanningEnabled && ![self ignoreTextInputbarAdjustment];
     }
-    else if ([gesture isEqual:self.longPressGesture]) {
-        return YES;
-    }
     
-    return NO;
+    return YES;
 }
 
 
