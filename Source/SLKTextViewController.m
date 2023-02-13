@@ -711,6 +711,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         return;
     }
     
+    [_textInputbar layoutIfNeeded];
     CGFloat inputbarHeight = _textInputbar.appropriateHeight;
     
     _textInputbar.rightButton.enabled = [self canPressRightButton];
@@ -1342,10 +1343,19 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         [self.textView slk_scrollToBottomAnimated:NO];
     }
     
+    NSIndexPath *lastVisibleRowIndexPath = [[self.tableView indexPathsForVisibleRows] lastObject];
+    
     // Disables the flag after the rotation animation is finished
     // Hacky but works.
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         self.transitioning = NO;
+        
+        if (lastVisibleRowIndexPath) {
+            [self.tableView scrollToRowAtIndexPath:lastVisibleRowIndexPath atScrollPosition:UITableViewScrollPositionBottom animated:NO];
+        }
+        
+        [self.textView setNeedsLayout];
+        [self.textView layoutIfNeeded];
     });
 }
 
@@ -2255,11 +2265,8 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     else if ([gesture isEqual:self.verticalPanGesture]) {
         return self.keyboardPanningEnabled && ![self ignoreTextInputbarAdjustment];
     }
-    else if ([gesture isEqual:self.longPressGesture]) {
-        return YES;
-    }
     
-    return NO;
+    return YES;
 }
 
 
@@ -2315,6 +2322,21 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     if (_textInputbar.isEditing) {
         self.textInputbarHC.constant += self.textInputbar.editorContentViewHeight;
     }
+    
+    [super updateViewConstraints];
+}
+
+- (void)updateViewToShowOrHideEmojiKeyboard:(CGFloat)height
+{
+    // Reset view controller if emoji keyboard is hidding
+    if (height == 0) {
+        [self slk_updateViewConstraints];
+        return;
+    }
+    
+    self.textInputbarHC.constant = 0.0;
+    self.keyboardHC.constant = height;
+    self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
     
     [super updateViewConstraints];
 }

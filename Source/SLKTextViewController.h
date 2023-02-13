@@ -77,9 +77,6 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
 /** A vertical pan gesture used for bringing the keyboard from the bottom. SLKTextViewController is its delegate. */
 @property (nonatomic, readonly) UIPanGestureRecognizer *verticalPanGesture;
 
-/** A long press gesture used for UITableViewCells. SLKTextViewController is its delegate. */
-@property (nonatomic, assign) UILongPressGestureRecognizer *longPressGesture;
-
 /** YES if animations should have bouncy effects. Default is YES. */
 @property (nonatomic, assign) BOOL bounces;
 
@@ -235,6 +232,15 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
  @param status The new keyboard status.
  */
 - (void)didChangeKeyboardStatus:(SLKKeyboardStatus)status;
+
+/**
+ Shrinks the view controller in order to create space for the emoji keyboard.
+ It also hides the text input bar.
+ 
+ @param height The height of the keyboard.
+ */
+
+- (void)updateViewToShowOrHideEmojiKeyboard:(CGFloat)height;
 
 
 #pragma mark - Interaction Notifications
