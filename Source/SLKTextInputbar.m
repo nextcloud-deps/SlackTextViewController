@@ -731,9 +731,10 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
         
         if (leftButtonSize.width > 0) {
             leftButtonSize.width = (leftButtonSize.width >= SLKTextInputbarMinButtonWidth) ? leftButtonSize.width : SLKTextInputbarMinButtonWidth;
+
             float leftButtonHeight = (leftButtonSize.height >= SLKTextInputbarMinButtonHeight) ? leftButtonSize.height : SLKTextInputbarMinButtonHeight;
             self.leftButtonHC.constant = roundf(leftButtonHeight);
-            self.leftButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - leftButtonSize.height) / 2.0) + self.slk_contentViewHeight / 2.0;
+            self.leftButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - leftButtonHeight) / 2.0) + self.slk_contentViewHeight / 2.0;
         }
         
         self.leftButtonWC.constant = roundf(leftButtonSize.width);
@@ -741,15 +742,11 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
         
         self.rightButtonWC.constant = [self slk_appropriateRightButtonWidth];
         self.rightMarginWC.constant = [self slk_appropriateRightButtonMargin];
+
         float rightButtonHeight = (rightButtonSize.height >= SLKTextInputbarMinButtonHeight) ? rightButtonSize.height : SLKTextInputbarMinButtonHeight;
         self.rightButtonHC.constant = roundf(rightButtonHeight);
-        
-        CGFloat rightVerMargin = (self.intrinsicContentSize.height - self.slk_contentViewHeight - self.rightButton.intrinsicContentSize.height) / 2.0;
-        CGFloat rightVerBottomMargin = rightVerMargin + self.slk_contentViewHeight;
-        
-        // No top margin to be inline with left button
-        //self.rightButtonTopMarginC.constant = rightVerMargin;
-        self.rightButtonBottomMarginC.constant = rightVerBottomMargin;
+        self.rightButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - self.slk_contentViewHeight - rightButtonHeight) / 2.0) + self.slk_contentViewHeight / 2.0;
+
     }
 }
 
