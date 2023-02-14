@@ -436,7 +436,8 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
     // Find out how the view is positioned on screen. When in slide over mode, we need
     // to take the y-position additionally into account to correctly position the view
-    CGRect frameOnScreen = [self.view convertRect:self.view.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
+    UIView *baseView = self.view.window.rootViewController.view;
+    CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
     CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen));
 
     CGFloat keyboardHeight = MAX(0.0, viewHeight - keyboardMinY + yPositionOnScreen);
@@ -1309,7 +1310,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
     // Find out how the view is positioned on screen. When in slide over mode, we need
     // to take the y-position additionally into account to correctly detect undocked keyboards
-    CGRect frameOnScreen = [self.view convertRect:self.view.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
+    CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
     CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen));
     
     if (SLK_IS_IPAD && (CGRectGetMaxY(convertEnd) + yPositionOnScreen) < CGRectGetMaxY(screenBounds)) {
