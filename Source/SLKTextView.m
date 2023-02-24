@@ -445,7 +445,13 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
     self.autocorrectionType = enabled ? UITextAutocorrectionTypeDefault : UITextAutocorrectionTypeNo;
     self.spellCheckingType = enabled ? UITextSpellCheckingTypeDefault : UITextSpellCheckingTypeNo;
     
-    [self refreshFirstResponder];
+    if (@available(iOS 16.0, *)) {
+        // On iOS 16 using "refreshFirstResponder" leads to a unwanted keyboard animation
+        // "refreshInputViews" is enough here.
+        [self refreshInputViews];
+    } else {
+        [self refreshFirstResponder];
+    }
 }
 
 - (void)setContentOffset:(CGPoint)contentOffset
