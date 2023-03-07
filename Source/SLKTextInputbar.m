@@ -497,6 +497,7 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     if (!self.isEditing) {
         self.contentViewHC.active = hidden;
         
+        [self slk_updateConstraintConstants];
         [super setNeedsLayout];
         [super layoutIfNeeded];
     }
@@ -726,6 +727,14 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     }
     else {
         self.editorContentViewHC.constant = zero;
+
+        // When the inputbar is hidden, we need to hide the buttons as as well
+        if (self->_hidden) {
+            self.leftButtonHC.constant = zero;
+            self.rightButtonHC.constant = zero;
+
+            return;
+        }
         
         CGSize leftButtonSize = [self.leftButton imageForState:self.leftButton.state].size;
         CGSize rightButtonSize = [self.rightButton imageForState:self.rightButton.state].size;
