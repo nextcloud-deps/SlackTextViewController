@@ -362,16 +362,16 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 {
     if (!_replyProxyView) {
         if (self.replyViewViewClass == nil) {
-            return [[UIView<SLKReplyViewProtocol> alloc] init];
-        }
+            _replyProxyView = [[UIView<SLKReplyViewProtocol> alloc] init];
+        } else {
+            Class class = self.replyViewViewClass;
 
-        Class class = self.replyViewViewClass;
-        
-        _replyProxyView = [[class alloc] init];
-        _replyProxyView.translatesAutoresizingMaskIntoConstraints = NO;
-        _replyProxyView.hidden = YES;
-        
-        [_replyProxyView addObserver:self forKeyPath:@"visible" options:NSKeyValueObservingOptionNew context:nil];
+            _replyProxyView = [[class alloc] init];
+            _replyProxyView.translatesAutoresizingMaskIntoConstraints = NO;
+            _replyProxyView.hidden = YES;
+
+            [_replyProxyView addObserver:self forKeyPath:@"visible" options:NSKeyValueObservingOptionNew context:nil];
+        }
     }
     return _replyProxyView;
 }
