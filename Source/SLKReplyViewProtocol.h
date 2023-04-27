@@ -10,13 +10,13 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/** Generic protocol needed when customizing your own typing indicator view. */
-@protocol SLKTypingIndicatorProtocol <NSObject>
+/** Generic protocol needed when customizing your own reply view. */
+@protocol SLKReplyViewProtocol <NSObject>
 @required
 
 /**
  Returns YES if the indicator is visible.
- SLKTextViewController depends on this property internally, by observing its value changes to update the typing indicator view's constraints automatically.
+ SLKTextViewController depends on this property internally, by observing its value changes to update the typing reply view's constraints automatically.
  You can simply @synthesize this property to make it KVO compliant, or override its setter method and wrap its implementation with -willChangeValueForKey: and -didChangeValueForKey: methods, for more complex KVO compliance.
  */
 @property (nonatomic, getter = isVisible) BOOL visible;
