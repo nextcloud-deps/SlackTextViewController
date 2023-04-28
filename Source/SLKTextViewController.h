@@ -589,7 +589,7 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
 
  @param aClass A SLKTextView subclass.
  */
-- (void)registerClassForTypingIndicator:(Class _Nullable)aClass;
+- (void)registerClassForTypingIndicatorView:(Class _Nullable)aClass;
 
 
 #pragma mark - Delegate Methods Requiring Super

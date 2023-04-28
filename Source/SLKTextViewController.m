@@ -55,8 +55,8 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
 // Optional classes to be used instead of the default ones.
 @property (nonatomic, strong) Class textViewClass;
-@property (nonatomic, strong) Class replyViewViewClass;
-@property (nonatomic, strong) Class typingIndicatorClass;
+@property (nonatomic, strong) Class replyViewClass;
+@property (nonatomic, strong) Class typingIndicatorViewClass;
 
 @end
 
@@ -342,8 +342,8 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (SLKTextInputbar *)textInputbar
 {
     if (!_textInputbar) {
-        if (_typingIndicatorClass != nil) {
-            _textInputbar = [[SLKTextInputbar alloc] initWithTextViewClass:self.textViewClass withTypingIndicatorViewClass:self.typingIndicatorClass];
+        if (_typingIndicatorViewClass != nil) {
+            _textInputbar = [[SLKTextInputbar alloc] initWithTextViewClass:self.textViewClass withTypingIndicatorViewClass:self.typingIndicatorViewClass];
         } else {
             _textInputbar = [[SLKTextInputbar alloc] initWithTextViewClass:self.textViewClass];
         }
@@ -368,10 +368,10 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (UIView <SLKVisibleViewProtocol> *)replyProxyView
 {
     if (!_replyProxyView) {
-        if (self.replyViewViewClass == nil) {
+        if (self.replyViewClass == nil) {
             _replyProxyView = [[SLKDefaultReplyView alloc] init];
         } else {
-            Class class = self.replyViewViewClass;
+            Class class = self.replyViewClass;
 
             _replyProxyView = [[class alloc] init];
             _replyProxyView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -2043,17 +2043,17 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     }
     
     NSAssert([aClass isSubclassOfClass:[UIView class]], @"The registered class is invalid, it must be a subclass of UIView.");
-    self.replyViewViewClass = aClass;
+    self.replyViewClass = aClass;
 }
 
-- (void)registerClassForTypingIndicator:(Class)aClass
+- (void)registerClassForTypingIndicatorView:(Class)aClass
 {
     if (aClass == nil) {
         return;
     }
 
     NSAssert([aClass isSubclassOfClass:[UIView class]], @"The registered class is invalid, it must be a subclass of SLKTextView.");
-    self.typingIndicatorClass = aClass;
+    self.typingIndicatorViewClass = aClass;
 }
 
 
