@@ -8,6 +8,8 @@
 
 #import <UIKit/UIKit.h>
 
+#import "SLKVisibleViewProtocol.h"
+
 @class SLKTextView;
 @class SLKInputAccessoryView;
 
@@ -25,6 +27,8 @@ typedef NS_ENUM(NSUInteger, SLKCounterPosition) {
 };
 
 NS_ASSUME_NONNULL_BEGIN
+
+UIKIT_EXTERN NSString * const SLKTextInputbarContentSizeDidChangeNotification;
 
 /** @name A custom tool bar encapsulating messaging controls. */
 @interface SLKTextInputbar : UIToolbar
@@ -64,6 +68,9 @@ NS_ASSUME_NONNULL_BEGIN
 /** The most appropriate height calculated based on the amount of lines of text and other factors. */
 @property (nonatomic, readonly) CGFloat appropriateHeight;
 
+/** View that is displayed above the inputbar to show typing indicators */
+@property (nonatomic, strong) UIView <SLKVisibleViewProtocol> *typingView;
+
 
 #pragma mark - Initialization
 ///------------------------------------------------
@@ -77,6 +84,7 @@ NS_ASSUME_NONNULL_BEGIN
  @return An initialized SLKTextInputbar object or nil if the object could not be created.
  */
 - (instancetype)initWithTextViewClass:(Class)textViewClass;
+- (instancetype)initWithTextViewClass:(Class)textViewClass withTypingIndicatorViewClass:(Class)typingIndicatorClass;
 
 
 #pragma mark - Text Editing

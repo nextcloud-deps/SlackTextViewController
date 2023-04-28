@@ -56,6 +56,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 // Optional classes to be used instead of the default ones.
 @property (nonatomic, strong) Class textViewClass;
 @property (nonatomic, strong) Class replyViewViewClass;
+@property (nonatomic, strong) Class typingIndicatorClass;
 
 @end
 
@@ -341,7 +342,12 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (SLKTextInputbar *)textInputbar
 {
     if (!_textInputbar) {
-        _textInputbar = [[SLKTextInputbar alloc] initWithTextViewClass:self.textViewClass];
+        if (_typingIndicatorClass != nil) {
+            _textInputbar = [[SLKTextInputbar alloc] initWithTextViewClass:self.textViewClass withTypingIndicatorViewClass:self.typingIndicatorClass];
+        } else {
+            _textInputbar = [[SLKTextInputbar alloc] initWithTextViewClass:self.textViewClass];
+        }
+
         _textInputbar.translatesAutoresizingMaskIntoConstraints = NO;
         
         [_textInputbar.leftButton addTarget:self action:@selector(didPressLeftButton:) forControlEvents:UIControlEventTouchUpInside];
@@ -1610,6 +1616,17 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     [self textDidUpdate:self.isViewVisible];
 }
 
+- (void)slk_didChangeInputbarContentSize:(NSNotification *)notification
+{
+    // Skips this it's not the expected textView.
+    if (![notification.object isEqual:self.textInputbar]) {
+        return;
+    }
+
+    // Animated only if the view already appeared.
+    [self textDidUpdate:self.isViewVisible];
+}
+
 - (void)slk_didChangeTextViewSelectedRange:(NSNotification *)notification
 {
     // Skips this it's not the expected textView.
@@ -2029,6 +2046,16 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     self.replyViewViewClass = aClass;
 }
 
+- (void)registerClassForTypingIndicator:(Class)aClass
+{
+    if (aClass == nil) {
+        return;
+    }
+
+    NSAssert([aClass isSubclassOfClass:[UIView class]], @"The registered class is invalid, it must be a subclass of SLKTextView.");
+    self.typingIndicatorClass = aClass;
+}
+
 
 #pragma mark - UITextViewDelegate Methods
 
@@ -2410,6 +2437,9 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     [notificationCenter addObserver:self selector:@selector(slk_didChangeTextViewSelectedRange:) name:SLKTextViewSelectedRangeDidChangeNotification object:nil];
     [notificationCenter addObserver:self selector:@selector(slk_didChangeTextViewPasteboard:) name:SLKTextViewDidPasteItemNotification object:nil];
     [notificationCenter addObserver:self selector:@selector(slk_didShakeTextView:) name:SLKTextViewDidShakeNotification object:nil];
+
+    // Inputbar notifications
+    [notificationCenter addObserver:self selector:@selector(slk_didChangeInputbarContentSize:) name:SLKTextInputbarContentSizeDidChangeNotification object:nil];
     
     // Application notifications
     [notificationCenter addObserver:self selector:@selector(cacheTextView) name:UIApplicationWillTerminateNotification object:nil];
@@ -2443,7 +2473,10 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     [notificationCenter removeObserver:self name:SLKTextViewSelectedRangeDidChangeNotification object:nil];
     [notificationCenter removeObserver:self name:SLKTextViewDidPasteItemNotification object:nil];
     [notificationCenter removeObserver:self name:SLKTextViewDidShakeNotification object:nil];
-    
+
+    // Inputbar notifications
+    [notificationCenter removeObserver:self name:SLKTextInputbarContentSizeDidChangeNotification object:nil];
+
     // Application notifications
     [notificationCenter removeObserver:self name:UIApplicationWillTerminateNotification object:nil];
     [notificationCenter removeObserver:self name:UIApplicationDidEnterBackgroundNotification object:nil];
