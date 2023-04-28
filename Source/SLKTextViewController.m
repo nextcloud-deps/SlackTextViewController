@@ -8,6 +8,7 @@
 
 #import "SLKTextViewController.h"
 #import "SLKInputAccessoryView.h"
+#import "SLKDefaultReplyView.h"
 
 #import "UIResponder+SLKAdditions.h"
 #import "SLKUIConstants.h"
@@ -358,11 +359,11 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     return _textInputbar;
 }
 
-- (UIView <SLKReplyViewProtocol> *)replyProxyView
+- (UIView <SLKVisibleViewProtocol> *)replyProxyView
 {
     if (!_replyProxyView) {
         if (self.replyViewViewClass == nil) {
-            _replyProxyView = [[UIView<SLKReplyViewProtocol> alloc] init];
+            _replyProxyView = [[SLKDefaultReplyView alloc] init];
         } else {
             Class class = self.replyViewViewClass;
 
@@ -1645,7 +1646,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     }
 }
 
-- (void)slk_willShowOrHideTypeIndicatorView:(UIView <SLKReplyViewProtocol> *)view
+- (void)slk_willShowOrHideTypeIndicatorView:(UIView <SLKVisibleViewProtocol> *)view
 {
     // Skips if the reply view should not show. Ignores the checking if it's trying to hide.
     if (![self canShowReplyView] && view.isVisible) {
@@ -1677,7 +1678,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
-    if ([object conformsToProtocol:@protocol(SLKReplyViewProtocol)] && [keyPath isEqualToString:@"visible"]) {
+    if ([object conformsToProtocol:@protocol(SLKVisibleViewProtocol)] && [keyPath isEqualToString:@"visible"]) {
         [self slk_willShowOrHideTypeIndicatorView:object];
     }
     else {

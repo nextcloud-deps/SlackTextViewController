@@ -11,7 +11,7 @@
 
 #import "SLKTextInputbar.h"
 #import "SLKTextView.h"
-#import "SLKReplyViewProtocol.h"
+#import "SLKVisibleViewProtocol.h"
 
 #import "SLKTextView+SLKAdditions.h"
 #import "UIScrollView+SLKAdditions.h"
@@ -65,7 +65,7 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
  To customize the reply view, you will need to call -registerClassForReplyView: nside of any initialization method.
  To interact with it directly, you will need to cast the return value of -replyProxyView to the appropriate type.
  */
-@property (nonatomic, readonly) UIView <SLKReplyViewProtocol> *replyProxyView;
+@property (nonatomic, readonly) UIView <SLKVisibleViewProtocol> *replyProxyView;
 
 /** A single tap gesture used to dismiss the keyboard. SLKTextViewController is its delegate. */
 @property (nonatomic, readonly) UIGestureRecognizer *singleTapGesture;

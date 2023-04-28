@@ -11,7 +11,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /** Generic protocol needed when customizing your own reply view. */
-@protocol SLKReplyViewProtocol <NSObject>
+@protocol SLKVisibleViewProtocol <NSObject>
 @required
 
 /**
@@ -26,7 +26,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  Dismisses the indicator view.
  */
-- (void)dismissIndicator;
+- (void)dismiss;
 
 @end
 
