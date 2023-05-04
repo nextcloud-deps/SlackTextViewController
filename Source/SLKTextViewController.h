@@ -11,8 +11,7 @@
 
 #import "SLKTextInputbar.h"
 #import "SLKTextView.h"
-#import "SLKTypingIndicatorView.h"
-#import "SLKTypingIndicatorProtocol.h"
+#import "SLKVisibleViewProtocol.h"
 
 #import "SLKTextView+SLKAdditions.h"
 #import "UIScrollView+SLKAdditions.h"
@@ -61,15 +60,12 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
 /** The bottom toolbar containing a text view and buttons. */
 @property (nonatomic, readonly) SLKTextInputbar *textInputbar;
 
-/** The default typing indicator used to display user names horizontally. */
-@property (nonatomic, readonly) SLKTypingIndicatorView *_Nullable typingIndicatorView;
-
 /**
- The custom typing indicator view. Default is kind of SLKTypingIndicatorView.
- To customize the typing indicator view, you will need to call -registerClassForTypingIndicatorView: nside of any initialization method.
- To interact with it directly, you will need to cast the return value of -typingIndicatorProxyView to the appropriate type.
+ The custom reply view. Default is kind of SLKReplyView.
+ To customize the reply view, you will need to call -registerClassForReplyView: nside of any initialization method.
+ To interact with it directly, you will need to cast the return value of -replyProxyView to the appropriate type.
  */
-@property (nonatomic, readonly) UIView <SLKTypingIndicatorProtocol> *typingIndicatorProxyView;
+@property (nonatomic, readonly) UIView <SLKVisibleViewProtocol> *replyProxyView;
 
 /** A single tap gesture used to dismiss the keyboard. SLKTextViewController is its delegate. */
 @property (nonatomic, readonly) UIGestureRecognizer *singleTapGesture;
@@ -309,13 +305,13 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
 - (void)didPasteMediaContent:(NSDictionary *)userInfo;
 
 /**
- Verifies that the typing indicator view should be shown.
+ Verifies that the reply view should be shown.
  You can override this method to perform additional tasks.
  You SHOULD call super to inherit some conditionals.
  
- @return YES if the typing indicator view should be presented.
+ @return YES if the reply view should be presented.
  */
-- (BOOL)canShowTypingIndicator;
+- (BOOL)canShowReplyView;
 
 /**
  Notifies the view controller when the user has shaked the device for undoing text typing.
@@ -579,11 +575,19 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
 - (void)registerClassForTextView:(Class _Nullable)aClass;
 
 /**
- Registers a class for customizing the behavior and appearance of the typing indicator view.
+ Registers a class for customizing the behavior and appearance of the reply view.
  You need to call this method inside of any initialization method.
- Make sure to conform to SLKTypingIndicatorProtocol and implement the required methods.
+ Make sure to conform to SLKReplyViewProtocol and implement the required methods.
  
- @param aClass A UIView subclass conforming to the SLKTypingIndicatorProtocol.
+ @param aClass A UIView subclass conforming to the SLKReplyViewProtocol.
+ */
+- (void)registerClassForReplyView:(Class _Nullable)aClass;
+
+/**
+ Registers a class for customizing the behavior and appearance of the text view.
+ You need to call this method inside of any initialization method.
+
+ @param aClass A SLKTextView subclass.
  */
 - (void)registerClassForTypingIndicatorView:(Class _Nullable)aClass;
 

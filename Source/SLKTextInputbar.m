@@ -9,15 +9,19 @@
 #import "SLKTextInputbar.h"
 #import "SLKTextView.h"
 #import "SLKInputAccessoryView.h"
+#import "SLKDefaultTypingIndicatorView.h"
 
 #import "SLKTextView+SLKAdditions.h"
 #import "UIView+SLKAdditions.h"
 
 #import "SLKUIConstants.h"
 
-NSString * const SLKTextInputbarDidMoveNotification =   @"SLKTextInputbarDidMoveNotification";
-CGFloat const SLKTextInputbarMinButtonWidth = 44.0;
-CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
+NSString * const SLKTextInputbarDidMoveNotification                 = @"SLKTextInputbarDidMoveNotification";
+NSString * const SLKTextInputbarContentSizeDidChangeNotification    = @"SLKTextInputbarContentSizeDidChangeNotification";
+
+CGFloat const SLKTextInputbarMinButtonWidth         = 44.0;
+CGFloat const SLKTextInputbarMinButtonHeight        = 44.0;
+CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 
 @interface SLKTextInputbar ()
 
@@ -33,6 +37,8 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
 @property (nonatomic, strong) NSLayoutConstraint *rightButtonTopMarginC;
 @property (nonatomic, strong) NSLayoutConstraint *rightButtonBottomMarginC;
 @property (nonatomic, strong) NSLayoutConstraint *editorContentViewHC;
+@property (nonatomic, strong) NSLayoutConstraint *typingIndicatorViewHC;
+@property (nonatomic, strong) NSLayoutConstraint *typingIndicatorViewTextViewPaddingConstraint;
 @property (nonatomic, strong) NSArray *charCountLabelVCs;
 
 @property (nonatomic, assign) UIEdgeInsets defaultInsets;
@@ -42,6 +48,7 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
 @property (nonatomic) CGPoint previousOrigin;
 
 @property (nonatomic, strong) Class textViewClass;
+@property (nonatomic, strong) Class typingIndicatorClass;
 
 @property (nonatomic, getter=isHidden) BOOL hidden; // Required override
 
@@ -59,6 +66,16 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
 {
     if (self = [super init]) {
         self.textViewClass = textViewClass;
+        [self slk_commonInit];
+    }
+    return self;
+}
+
+- (instancetype)initWithTextViewClass:(Class)textViewClass withTypingIndicatorViewClass:(Class)typingIndicatorClass
+{
+    if (self = [super init]) {
+        self.textViewClass = textViewClass;
+        self.typingIndicatorClass = typingIndicatorClass;
         [self slk_commonInit];
     }
     return self;
@@ -94,6 +111,7 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     // so private UIToolbar subviews don't interfere on the touch hierarchy
     [self layoutSubviews];
 
+    [self addSubview:self.typingView];
     [self addSubview:self.editorContentView];
     [self addSubview:self.leftButton];
     [self addSubview:self.rightButton];
@@ -309,6 +327,24 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     return _charCountLabel;
 }
 
+- (UIView *)typingView
+{
+    if (!_typingView) {
+        if (self.typingIndicatorClass == nil) {
+            _typingView = [[SLKDefaultTypingIndicatorView alloc] init];
+        } else {
+            Class class = self.typingIndicatorClass;
+
+            _typingView = [[class alloc] init];
+            _typingView.translatesAutoresizingMaskIntoConstraints = NO;
+            _typingView.clipsToBounds = YES;
+
+            [_typingView addObserver:self forKeyPath:@"visible" options:NSKeyValueObservingOptionNew context:nil];
+        }
+    }
+    return _typingView;
+}
+
 - (BOOL)isHidden
 {
     return _hidden;
@@ -319,7 +355,8 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     CGFloat minimumHeight = self.textView.intrinsicContentSize.height;
     minimumHeight += self.contentInset.top;
     minimumHeight += self.slk_bottomMargin;
-    
+    minimumHeight += [self slk_typingIndicatorHeight];
+
     return minimumHeight;
 }
 
@@ -366,7 +403,8 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     height += roundf(self.textView.font.lineHeight*numberOfLines);
     height += self.contentInset.top;
     height += self.slk_bottomMargin;
-    
+    height += [self slk_typingIndicatorHeight];
+
     return height;
 }
 
@@ -385,6 +423,16 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     }
     
     return 0.0;
+}
+
+- (CGFloat)slk_textViewHeight
+{
+    return [self slk_contentViewHeight] - [self slk_typingIndicatorHeight];
+}
+
+- (CGFloat)slk_typingIndicatorHeight
+{
+    return self.typingIndicatorViewHC.constant + self.typingIndicatorViewTextViewPaddingConstraint.constant;
 }
 
 - (CGFloat)slk_appropriateRightButtonWidth
@@ -671,6 +719,7 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
                             @"editorContentView": self.editorContentView,
                             @"charCountLabel": self.charCountLabel,
                             @"contentView": self.contentView,
+                            @"typingView": self.typingView
                             };
     
     NSDictionary *metrics = @{@"top" : @(self.contentInset.top),
@@ -683,13 +732,19 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(>=0)-[leftButton(0)]-(0@750)-|" options:0 metrics:metrics views:views]];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(>=0)-[rightButton(0)]-(<=0)-|" options:0 metrics:metrics views:views]];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(left@250)-[charCountLabel(<=50@1000)]-(right@750)-|" options:0 metrics:metrics views:views]];
-    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0-[editorContentView(0)]-(<=top)-[textView(0@999)]-(0)-|" options:0 metrics:metrics views:views]];
+    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(50)-[typingView]|" options:0 metrics:metrics views:views]];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[editorContentView]|" options:0 metrics:metrics views:views]];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[contentView]|" options:0 metrics:metrics views:views]];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:[contentView(0)]|" options:0 metrics:metrics views:views]];
 
+    NSArray<NSLayoutConstraint *> *verticalTypingIndicatorTextViewContraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0-[editorContentView(0)]-(<=top)-[typingView(0)]-(<=0)-[textView(0@999)]-(0)-|" options:0 metrics:metrics views:views];
+    self.typingIndicatorViewTextViewPaddingConstraint = verticalTypingIndicatorTextViewContraints[4];
+    [self addConstraints:verticalTypingIndicatorTextViewContraints];
+
     self.textViewBottomMarginC = [self slk_constraintForAttribute:NSLayoutAttributeBottom firstItem:self secondItem:self.textView];
     self.editorContentViewHC = [self slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.editorContentView secondItem:nil];
+    self.typingIndicatorViewHC = [self slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.typingView secondItem:nil];
+
     self.contentViewHC = [self slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.contentView secondItem:nil];;
     self.contentViewHC.active = NO; // Disabled by default, so the height is calculated with the height of its subviews
     
@@ -728,7 +783,7 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     else {
         self.editorContentViewHC.constant = zero;
 
-        // When the inputbar is hidden, we need to hide the buttons as as well
+        // When the inputbar is hidden, we need to hide the buttons as well
         if (self->_hidden) {
             self.leftButtonHC.constant = zero;
             self.rightButtonHC.constant = zero;
@@ -744,7 +799,7 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
 
             float leftButtonHeight = (leftButtonSize.height >= SLKTextInputbarMinButtonHeight) ? leftButtonSize.height : SLKTextInputbarMinButtonHeight;
             self.leftButtonHC.constant = roundf(leftButtonHeight);
-            self.leftButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - leftButtonHeight) / 2.0) + self.slk_contentViewHeight / 2.0;
+            self.leftButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - leftButtonHeight) / 2.0) + self.slk_textViewHeight / 2.0;
         }
         
         self.leftButtonWC.constant = roundf(leftButtonSize.width);
@@ -755,8 +810,7 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
 
         float rightButtonHeight = (rightButtonSize.height >= SLKTextInputbarMinButtonHeight) ? rightButtonSize.height : SLKTextInputbarMinButtonHeight;
         self.rightButtonHC.constant = roundf(rightButtonHeight);
-        self.rightButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - self.slk_contentViewHeight - rightButtonHeight) / 2.0) + self.slk_contentViewHeight / 2.0;
-
+        self.rightButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - rightButtonHeight) / 2.0) + self.slk_textViewHeight / 2.0;
     }
 }
 
@@ -799,6 +853,20 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
         
         [self slk_updateConstraintConstants];
     }
+    else if ([object conformsToProtocol:@protocol(SLKVisibleViewProtocol)] && [keyPath isEqualToString:@"visible"]) {
+        [self slk_animateLayoutIfNeededWithBounce:NO options:UIViewAnimationOptionCurveEaseInOut|UIViewAnimationOptionLayoutSubviews|UIViewAnimationOptionBeginFromCurrentState animations:^{
+            if (self.typingView.isVisible) {
+                self.typingIndicatorViewHC.constant = SLKTextInputbarTypingIndicatorHeight;
+                self.typingIndicatorViewTextViewPaddingConstraint.constant = self.contentInset.top;
+            } else {
+                self.typingIndicatorViewHC.constant = 0;
+                self.typingIndicatorViewTextViewPaddingConstraint.constant = 0;
+            }
+
+            // Make sure we update the scrollView position in the viewController as well
+            [[NSNotificationCenter defaultCenter] postNotificationName:SLKTextInputbarContentSizeDidChangeNotification object:self];
+        }];
+    }
     else {
         [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
     }
@@ -833,6 +901,8 @@ CGFloat const SLKTextInputbarMinButtonHeight = 44.0;
     [self slk_unregisterFrom:self.layer forSelector:@selector(position)];
     [self slk_unregisterFrom:self.leftButton.imageView forSelector:@selector(image)];
     [self slk_unregisterFrom:self.rightButton.titleLabel forSelector:@selector(font)];
+
+    [self.typingView removeObserver:self forKeyPath:@"visible"];
 }
 
 @end
