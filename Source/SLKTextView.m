@@ -193,13 +193,8 @@ static NSString *const SLKTextViewGenericFormattingSelectorPrefix = @"slk_format
 {
     NSUInteger numberOfLines = _maxNumberOfLines;
     
-    if (SLK_IS_LANDSCAPE) {
-        if ((SLK_IS_IPHONE4 || SLK_IS_IPHONE5)) {
-            numberOfLines = 2.0; // 2 lines max on smaller iPhones
-        }
-        else if (SLK_IS_IPHONE) {
-            numberOfLines /= 2.0; // Half size on larger iPhone
-        }
+    if (SLK_IS_LANDSCAPE && SLK_IS_IPHONE) {
+        numberOfLines /= 2.0; // Half size on larger iPhone
     }
     
     if (self.isDynamicTypeEnabled) {

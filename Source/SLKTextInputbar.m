@@ -464,9 +464,6 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     if (SLK_IS_IPAD) {
         return 8;
     }
-    else if (SLK_IS_IPHONE4) {
-        return 4;
-    }
     else {
         return 6;
     }
