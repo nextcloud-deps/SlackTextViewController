@@ -18,8 +18,9 @@ static __weak id ___currentFirstResponder;
 + (instancetype)slk_currentFirstResponder
 {
     ___currentFirstResponder = nil;
+#ifndef APP_EXTENSION
     [[UIApplication sharedApplication] sendAction:@selector(slk_findFirstResponder:) to:nil from:nil forEvent:nil];
-    
+#endif
     return ___currentFirstResponder;
 }
 

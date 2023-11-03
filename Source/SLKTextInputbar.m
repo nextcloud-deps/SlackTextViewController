@@ -464,9 +464,6 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     if (SLK_IS_IPAD) {
         return 8;
     }
-    else if (SLK_IS_IPHONE4) {
-        return 4;
-    }
     else {
         return 6;
     }
@@ -803,7 +800,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         }
         
         self.leftButtonWC.constant = roundf(leftButtonSize.width);
-        self.leftMarginWC.constant = (leftButtonSize.width > 0) ? self.contentInset.left : zero;
+        self.leftMarginWC.constant = (leftButtonSize.width > 0) ? self.contentInset.left : 16;
         
         self.rightButtonWC.constant = [self slk_appropriateRightButtonWidth];
         self.rightMarginWC.constant = [self slk_appropriateRightButtonMargin];

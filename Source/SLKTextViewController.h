@@ -70,22 +70,11 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
 /** A single tap gesture used to dismiss the keyboard. SLKTextViewController is its delegate. */
 @property (nonatomic, readonly) UIGestureRecognizer *singleTapGesture;
 
-/** A vertical pan gesture used for bringing the keyboard from the bottom. SLKTextViewController is its delegate. */
-@property (nonatomic, readonly) UIPanGestureRecognizer *verticalPanGesture;
-
 /** YES if animations should have bouncy effects. Default is YES. */
 @property (nonatomic, assign) BOOL bounces;
 
 /** YES if text view's content can be cleaned with a shake gesture. Default is NO. */
 @property (nonatomic, assign) BOOL shakeToClearEnabled;
-
-/**
- YES if keyboard can be dismissed gradually with a vertical panning gesture. Default is YES.
- 
- This feature doesn't work on iOS 9 due to no legit alternatives to detect the keyboard view.
- Open Radar: http://openradar.appspot.com/radar?id=5021485877952512
- */
-@property (nonatomic, assign, getter = isKeyboardPanningEnabled) BOOL keyboardPanningEnabled;
 
 /** YES if an external keyboard has been detected (this value updates only when the text view becomes first responder). */
 @property (nonatomic, readonly, getter=isExternalKeyboardDetected) BOOL externalKeyboardDetected;

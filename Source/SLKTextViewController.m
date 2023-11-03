@@ -13,9 +13,6 @@
 #import "UIResponder+SLKAdditions.h"
 #import "SLKUIConstants.h"
 
-/** Feature flagged while waiting to implement a more reliable technique. */
-#define SLKBottomPanningEnabled 0
-
 #define kSLKAlertViewClearTextTag [NSStringFromClass([SLKTextViewController class]) hash]
 
 NSString * const SLKKeyboardWillShowNotification =      @"SLKKeyboardWillShowNotification";
@@ -57,6 +54,8 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 @property (nonatomic, strong) Class textViewClass;
 @property (nonatomic, strong) Class replyViewClass;
 @property (nonatomic, strong) Class typingIndicatorViewClass;
+
+@property (nonatomic, strong) NSNotification *lastKeyboardNotification;
 
 @end
 
@@ -154,7 +153,6 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     self.bounces = YES;
     self.inverted = YES;
     self.shakeToClearEnabled = NO;
-    self.keyboardPanningEnabled = YES;
     self.shouldClearTextAtRightButtonPress = YES;
     self.shouldScrollToBottomAfterKeyboardShows = NO;
     
@@ -356,11 +354,6 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         [_textInputbar.editorRightButton addTarget:self action:@selector(didCommitTextEditing:) forControlEvents:UIControlEventTouchUpInside];
         
         _textInputbar.textView.delegate = self;
-        
-        _verticalPanGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(slk_didPanTextInputBar:)];
-        _verticalPanGesture.delegate = self;
-        
-        [_textInputbar addGestureRecognizer:self.verticalPanGesture];
     }
     return _textInputbar;
 }
@@ -440,8 +433,11 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     // Find out how the view is positioned on screen. When in slide over mode, we need
     // to take the y-position additionally into account to correctly position the view
     UIView *baseView = self.view.window.rootViewController.view;
+
+    // In case our view is opened on a modal, we need to take the position of our view in the baseView (relative to the window) into account
+    CGRect frameOnBaseView = [baseView convertRect:self.view.frame toView:self.view.window];
     CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
-    CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen));
+    CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen) - CGRectGetMinY(frameOnBaseView));
 
     CGFloat keyboardHeight = MAX(0.0, viewHeight - keyboardMinY + yPositionOnScreen);
     CGFloat bottomMargin = [self slk_appropriateBottomMargin];
@@ -452,7 +448,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     if (keyboardHeight < bottomMargin) {
         keyboardHeight = bottomMargin;
     }
-    
+
     return keyboardHeight;
 }
 
@@ -480,12 +476,11 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (CGFloat)slk_appropriateScrollViewHeight
 {
     CGFloat scrollViewHeight = CGRectGetHeight(self.view.bounds);
-    
+
     scrollViewHeight -= self.keyboardHC.constant;
     scrollViewHeight -= self.textInputbarHC.constant;
     scrollViewHeight -= self.autoCompletionViewHC.constant;
     scrollViewHeight -= self.replyViewHC.constant;
-    
     if (scrollViewHeight < 0) return 0;
     else return scrollViewHeight;
 }
@@ -504,8 +499,9 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         self.isPresentedInPopover) {
         return topBarsHeight;
     }
-    
+#ifndef APP_EXTENSION
     topBarsHeight += CGRectGetHeight([UIApplication sharedApplication].statusBarFrame);
+#endif
     
     return topBarsHeight;
 }
@@ -584,9 +580,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     [_singleTapGesture requireGestureRecognizerToFail:scrollView.panGestureRecognizer];
     
     [scrollView addGestureRecognizer:self.singleTapGesture];
-    
-    [scrollView.panGestureRecognizer addTarget:self action:@selector(slk_didPanTextInputBar:)];
-    
+
     _scrollViewProxy = scrollView;
 }
 
@@ -971,215 +965,11 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
 #pragma mark - Private Methods
 
-- (void)slk_didPanTextInputBar:(UIPanGestureRecognizer *)gesture
-{
-    // Textinput dragging isn't supported when
-    if (!self.view.window || !self.keyboardPanningEnabled ||
-        [self ignoreTextInputbarAdjustment] || self.isPresentedInPopover) {
-        return;
-    }
-    
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self slk_handlePanGestureRecognizer:gesture];
-    });
-}
-
-- (void)slk_handlePanGestureRecognizer:(UIPanGestureRecognizer *)gesture
-{
-    // Local variables
-    static CGPoint startPoint;
-    static CGRect originalFrame;
-    static BOOL dragging = NO;
-    static BOOL presenting = NO;
-    
-    __block UIView *keyboardView = [_textInputbar.inputAccessoryView keyboardViewProxy];
-    
-    // When no keyboard view has been detecting, let's skip any handling.
-    if (!keyboardView) {
-        return;
-    }
-    
-    // Dynamic variables
-    CGPoint gestureLocation = [gesture locationInView:self.view];
-    CGPoint gestureVelocity = [gesture velocityInView:self.view];
-    
-    CGFloat keyboardMaxY = CGRectGetHeight(SLKKeyWindowBounds());
-    CGFloat keyboardMinY = keyboardMaxY - CGRectGetHeight(keyboardView.frame);
-    
-    
-    // Skips this if it's not the expected textView.
-    // Checking the keyboard height constant helps to disable the view constraints update on iPad when the keyboard is undocked.
-    // Checking the keyboard status allows to keep the inputAccessoryView valid when still reacing the bottom of the screen.
-    CGFloat bottomMargin = [self slk_appropriateBottomMargin];
-    
-    if (![self.textView isFirstResponder] || (self.keyboardHC.constant == bottomMargin && self.keyboardStatus == SLKKeyboardStatusDidHide)) {
-#if SLKBottomPanningEnabled
-        if ([gesture.view isEqual:self.scrollViewProxy]) {
-            if (gestureVelocity.y > 0) {
-                return;
-            }
-            else if ((self.isInverted && ![self.scrollViewProxy slk_isAtTop]) || (!self.isInverted && ![self.scrollViewProxy slk_isAtBottom])) {
-                return;
-            }
-        }
-        
-        presenting = YES;
-#else
-        if ([gesture.view isEqual:_textInputbar] && gestureVelocity.y < 0) {
-            [self presentKeyboard:YES];
-        }
-        return;
-#endif
-    }
-    
-    switch (gesture.state) {
-        case UIGestureRecognizerStateBegan: {
-            
-            startPoint = CGPointZero;
-            dragging = NO;
-            
-            if (presenting) {
-                // Let's first present the keyboard without animation
-                [self presentKeyboard:NO];
-                
-                // So we can capture the keyboard's view
-                keyboardView = [_textInputbar.inputAccessoryView keyboardViewProxy];
-                
-                originalFrame = keyboardView.frame;
-                originalFrame.origin.y = CGRectGetMaxY(self.view.frame);
-                
-                // And move the keyboard to the bottom edge
-                // TODO: Fix an occasional layout glitch when the keyboard appears for the first time.
-                keyboardView.frame = originalFrame;
-            }
-            
-            break;
-        }
-        case UIGestureRecognizerStateChanged: {
-            
-            if (CGRectContainsPoint(_textInputbar.frame, gestureLocation) || dragging || presenting){
-                
-                if (CGPointEqualToPoint(startPoint, CGPointZero)) {
-                    startPoint = gestureLocation;
-                    dragging = YES;
-                    
-                    if (!presenting) {
-                        originalFrame = keyboardView.frame;
-                    }
-                }
-                
-                self.movingKeyboard = YES;
-                
-                CGPoint transition = CGPointMake(gestureLocation.x - startPoint.x, gestureLocation.y - startPoint.y);
-                
-                CGRect keyboardFrame = originalFrame;
-                
-                if (presenting) {
-                    keyboardFrame.origin.y += transition.y;
-                }
-                else {
-                    keyboardFrame.origin.y += MAX(transition.y, 0.0);
-                }
-                
-                // Makes sure they keyboard is always anchored to the bottom
-                if (CGRectGetMinY(keyboardFrame) < keyboardMinY) {
-                    keyboardFrame.origin.y = keyboardMinY;
-                }
-                
-                keyboardView.frame = keyboardFrame;
-                
-                
-                self.keyboardHC.constant = [self slk_appropriateKeyboardHeightFromRect:keyboardFrame];
-                self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
-                
-                // layoutIfNeeded must be called before any further scrollView internal adjustments (content offset and size)
-                [self.view layoutIfNeeded];
-                
-                // Overrides the scrollView's contentOffset to allow following the same position when dragging the keyboard
-                CGPoint offset = _scrollViewOffsetBeforeDragging;
-                
-                if (self.isInverted) {
-                    if (!self.scrollViewProxy.isDecelerating && self.scrollViewProxy.isTracking) {
-                        self.scrollViewProxy.contentOffset = _scrollViewOffsetBeforeDragging;
-                    }
-                }
-                else {
-                    CGFloat keyboardHeightDelta = _keyboardHeightBeforeDragging-self.keyboardHC.constant;
-                    offset.y -= keyboardHeightDelta;
-                    
-                    self.scrollViewProxy.contentOffset = offset;
-                }
-            }
-            
-            break;
-        }
-        case UIGestureRecognizerStatePossible:
-        case UIGestureRecognizerStateCancelled:
-        case UIGestureRecognizerStateEnded:
-        case UIGestureRecognizerStateFailed: {
-            
-            if (!dragging) {
-                break;
-            }
-            
-            CGPoint transition = CGPointMake(0.0, fabs(gestureLocation.y - startPoint.y));
-            
-            CGRect keyboardFrame = originalFrame;
-            
-            if (presenting) {
-                keyboardFrame.origin.y = keyboardMinY;
-            }
-            
-            // The velocity can be changed to hide or show the keyboard based on the gesture
-            CGFloat minVelocity = 20.0;
-            CGFloat minDistance = CGRectGetHeight(keyboardFrame)/2.0;
-            
-            BOOL hide = (gestureVelocity.y > minVelocity) || (presenting && transition.y < minDistance) || (!presenting && transition.y > minDistance);
-            
-            if (hide) keyboardFrame.origin.y = keyboardMaxY;
-            
-            self.keyboardHC.constant = [self slk_appropriateKeyboardHeightFromRect:keyboardFrame];
-            self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
-            
-            [UIView animateWithDuration:0.25
-                                  delay:0.0
-                                options:UIViewAnimationOptionCurveEaseInOut|UIViewAnimationOptionBeginFromCurrentState
-                             animations:^{
-                                 [self.view layoutIfNeeded];
-                                 keyboardView.frame = keyboardFrame;
-                             }
-                             completion:^(BOOL finished) {
-                                 if (hide) {
-                                     [self dismissKeyboard:NO];
-                                 }
-                                 
-                                 // Tear down
-                                 startPoint = CGPointZero;
-                                 originalFrame = CGRectZero;
-                                 dragging = NO;
-                                 presenting = NO;
-                                 
-                                 self.movingKeyboard = NO;
-                             }];
-            
-            break;
-        }
-            
-        default:
-            break;
-    }
-}
-
 - (void)slk_didTapScrollView:(UIGestureRecognizer *)gesture
 {
     if (!self.isPresentedInPopover && ![self ignoreTextInputbarAdjustment]) {
         [self dismissKeyboard:YES];
     }
-}
-
-- (void)slk_didPanTextView:(UIGestureRecognizer *)gesture
-{
-    [self presentKeyboard:YES];
 }
 
 - (void)slk_performRightAction
@@ -1288,7 +1078,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     CGRect screenBounds = [UIScreen mainScreen].bounds;
     
     // Convert the main screen bounds into the correct coordinate space but ignore the origin.
-    CGRect viewBounds = [self.view convertRect:SLKKeyWindowBounds() fromView:nil];
+    CGRect viewBounds = [self.view convertRect:self.view.window.bounds fromView:nil];
     viewBounds = CGRectMake(0, 0, viewBounds.size.width, viewBounds.size.height);
     
     // We want these rects in the correct coordinate space as well.
@@ -1509,15 +1299,41 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
             [self.view layoutIfNeeded];
         } else {
             // Only for this animation, we set bo to bounce since we want to give the impression that the text input is glued to the keyboard.
+            self.lastKeyboardNotification = notification;
+
+            CADisplayLink *displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(adjustKeyboardWhileAnimating)];
+            [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+
+            [CATransaction begin];
+            [CATransaction setCompletionBlock:^{
+                [displayLink invalidate];
+            }];
+
             [self.view slk_animateLayoutIfNeededWithDuration:duration
                                                       bounce:NO
                                                      options:(curve<<16)|UIViewAnimationOptionLayoutSubviews|UIViewAnimationOptionBeginFromCurrentState
                                                   animations:animations
                                                   completion:NULL];
+
+            [CATransaction commit];
         }
     }
     else {
         animations();
+    }
+}
+
+- (void)adjustKeyboardWhileAnimating 
+{
+    // We check the keyboard height while we are doing the keyboard animation
+    // This fixes the positioning of the keyboard when displayed on an iPad as a form sheet
+    CGFloat previousKeyboardHeight = self.keyboardHC.constant;
+    CGFloat newKeyboardHeight = [self slk_appropriateKeyboardHeightFromNotification:self.lastKeyboardNotification];
+
+    if (previousKeyboardHeight != newKeyboardHeight) {
+        // Updates the height constraints' constants
+        self.keyboardHC.constant = newKeyboardHeight;
+        self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
     }
 }
 
@@ -2295,9 +2111,6 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     if ([gesture isEqual:self.singleTapGesture]) {
         return [self.textView isFirstResponder] && ![self ignoreTextInputbarAdjustment];
     }
-    else if ([gesture isEqual:self.verticalPanGesture]) {
-        return self.keyboardPanningEnabled && ![self ignoreTextInputbarAdjustment];
-    }
     
     return YES;
 }
@@ -2348,7 +2161,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
 - (void)slk_updateViewConstraints
 {
-    self.textInputbarHC.constant = self.textInputbar.hidden ? 0.0 : self.textInputbar.minimumInputbarHeight;
+    self.textInputbarHC.constant = self.textInputbar.hidden ? 0.0 : self.textInputbar.appropriateHeight;
     self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
     self.keyboardHC.constant = [self slk_appropriateKeyboardHeightFromRect:CGRectNull];
     

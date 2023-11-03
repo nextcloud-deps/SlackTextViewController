@@ -193,17 +193,12 @@ static NSString *const SLKTextViewGenericFormattingSelectorPrefix = @"slk_format
 {
     NSUInteger numberOfLines = _maxNumberOfLines;
     
-    if (SLK_IS_LANDSCAPE) {
-        if ((SLK_IS_IPHONE4 || SLK_IS_IPHONE5)) {
-            numberOfLines = 2.0; // 2 lines max on smaller iPhones
-        }
-        else if (SLK_IS_IPHONE) {
-            numberOfLines /= 2.0; // Half size on larger iPhone
-        }
+    if (SLK_IS_LANDSCAPE && SLK_IS_IPHONE) {
+        numberOfLines /= 2.0; // Half size on larger iPhone
     }
     
     if (self.isDynamicTypeEnabled) {
-        NSString *contentSizeCategory = [[UIApplication sharedApplication] preferredContentSizeCategory];
+        NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
         CGFloat pointSizeDifference = SLKPointSizeDifferenceForCategory(contentSizeCategory);
         
         CGFloat factor = pointSizeDifference/self.initialFontSize;
@@ -510,8 +505,8 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
 
 - (void)setFont:(UIFont *)font
 {
-    NSString *contentSizeCategory = [[UIApplication sharedApplication] preferredContentSizeCategory];
-    
+    NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
+
     [self setFont:font pointSize:font.pointSize withContentSizeCategory:contentSizeCategory];
     
     self.initialFontSize = font.pointSize;
@@ -539,7 +534,7 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
     
     _dynamicTypeEnabled = dynamicTypeEnabled;
     
-    NSString *contentSizeCategory = [[UIApplication sharedApplication] preferredContentSizeCategory];
+    NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
 
     [self setFont:self.font pointSize:self.initialFontSize withContentSizeCategory:contentSizeCategory];
 }
