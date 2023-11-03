@@ -198,7 +198,7 @@ static NSString *const SLKTextViewGenericFormattingSelectorPrefix = @"slk_format
     }
     
     if (self.isDynamicTypeEnabled) {
-        NSString *contentSizeCategory = [[UIApplication sharedApplication] preferredContentSizeCategory];
+        NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
         CGFloat pointSizeDifference = SLKPointSizeDifferenceForCategory(contentSizeCategory);
         
         CGFloat factor = pointSizeDifference/self.initialFontSize;
@@ -505,8 +505,8 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
 
 - (void)setFont:(UIFont *)font
 {
-    NSString *contentSizeCategory = [[UIApplication sharedApplication] preferredContentSizeCategory];
-    
+    NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
+
     [self setFont:font pointSize:font.pointSize withContentSizeCategory:contentSizeCategory];
     
     self.initialFontSize = font.pointSize;
@@ -534,7 +534,7 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
     
     _dynamicTypeEnabled = dynamicTypeEnabled;
     
-    NSString *contentSizeCategory = [[UIApplication sharedApplication] preferredContentSizeCategory];
+    NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
 
     [self setFont:self.font pointSize:self.initialFontSize withContentSizeCategory:contentSizeCategory];
 }
