@@ -55,6 +55,8 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 @property (nonatomic, strong) Class replyViewClass;
 @property (nonatomic, strong) Class typingIndicatorViewClass;
 
+@property (nonatomic, strong) NSNotification *lastKeyboardNotification;
+
 @end
 
 @implementation SLKTextViewController
@@ -431,8 +433,11 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     // Find out how the view is positioned on screen. When in slide over mode, we need
     // to take the y-position additionally into account to correctly position the view
     UIView *baseView = self.view.window.rootViewController.view;
+
+    // In case our view is opened on a modal, we need to take the position of our view in the baseView (relative to the window) into account
+    CGRect frameOnBaseView = [baseView convertRect:self.view.frame toView:self.view.window];
     CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
-    CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen));
+    CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen) - CGRectGetMinY(frameOnBaseView));
 
     CGFloat keyboardHeight = MAX(0.0, viewHeight - keyboardMinY + yPositionOnScreen);
     CGFloat bottomMargin = [self slk_appropriateBottomMargin];
@@ -443,7 +448,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     if (keyboardHeight < bottomMargin) {
         keyboardHeight = bottomMargin;
     }
-    
+
     return keyboardHeight;
 }
 
@@ -471,12 +476,11 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (CGFloat)slk_appropriateScrollViewHeight
 {
     CGFloat scrollViewHeight = CGRectGetHeight(self.view.bounds);
-    
+
     scrollViewHeight -= self.keyboardHC.constant;
     scrollViewHeight -= self.textInputbarHC.constant;
     scrollViewHeight -= self.autoCompletionViewHC.constant;
     scrollViewHeight -= self.replyViewHC.constant;
-    
     if (scrollViewHeight < 0) return 0;
     else return scrollViewHeight;
 }
@@ -495,8 +499,9 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         self.isPresentedInPopover) {
         return topBarsHeight;
     }
-    
+#ifndef APP_EXTENSION
     topBarsHeight += CGRectGetHeight([UIApplication sharedApplication].statusBarFrame);
+#endif
     
     return topBarsHeight;
 }
@@ -1294,15 +1299,41 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
             [self.view layoutIfNeeded];
         } else {
             // Only for this animation, we set bo to bounce since we want to give the impression that the text input is glued to the keyboard.
+            self.lastKeyboardNotification = notification;
+
+            CADisplayLink *displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(adjustKeyboardWhileAnimating)];
+            [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+
+            [CATransaction begin];
+            [CATransaction setCompletionBlock:^{
+                [displayLink invalidate];
+            }];
+
             [self.view slk_animateLayoutIfNeededWithDuration:duration
                                                       bounce:NO
                                                      options:(curve<<16)|UIViewAnimationOptionLayoutSubviews|UIViewAnimationOptionBeginFromCurrentState
                                                   animations:animations
                                                   completion:NULL];
+
+            [CATransaction commit];
         }
     }
     else {
         animations();
+    }
+}
+
+- (void)adjustKeyboardWhileAnimating 
+{
+    // We check the keyboard height while we are doing the keyboard animation
+    // This fixes the positioning of the keyboard when displayed on an iPad as a form sheet
+    CGFloat previousKeyboardHeight = self.keyboardHC.constant;
+    CGFloat newKeyboardHeight = [self slk_appropriateKeyboardHeightFromNotification:self.lastKeyboardNotification];
+
+    if (previousKeyboardHeight != newKeyboardHeight) {
+        // Updates the height constraints' constants
+        self.keyboardHC.constant = newKeyboardHeight;
+        self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
     }
 }
 
@@ -2130,7 +2161,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
 - (void)slk_updateViewConstraints
 {
-    self.textInputbarHC.constant = self.textInputbar.hidden ? 0.0 : self.textInputbar.minimumInputbarHeight;
+    self.textInputbarHC.constant = self.textInputbar.hidden ? 0.0 : self.textInputbar.appropriateHeight;
     self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
     self.keyboardHC.constant = [self slk_appropriateKeyboardHeightFromRect:CGRectNull];
     

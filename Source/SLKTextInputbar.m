@@ -800,7 +800,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         }
         
         self.leftButtonWC.constant = roundf(leftButtonSize.width);
-        self.leftMarginWC.constant = (leftButtonSize.width > 0) ? self.contentInset.left : zero;
+        self.leftMarginWC.constant = (leftButtonSize.width > 0) ? self.contentInset.left : 16;
         
         self.rightButtonWC.constant = [self slk_appropriateRightButtonWidth];
         self.rightMarginWC.constant = [self slk_appropriateRightButtonMargin];
