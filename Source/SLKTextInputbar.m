@@ -399,8 +399,12 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 - (CGFloat)slk_inputBarHeightForLines:(NSUInteger)numberOfLines
 {
     CGFloat height = self.textView.intrinsicContentSize.height;
+
+    // Since the intrinsicContentSize (see SLKTextView) contains the lineHeight, we remove it here again
     height -= self.textView.font.lineHeight;
-    height += roundf(self.textView.font.lineHeight*numberOfLines);
+
+    height += roundf(self.textView.font.lineHeight * numberOfLines);
+    height += roundf(self.textView.font.leading * numberOfLines);
     height += self.contentInset.top;
     height += self.slk_bottomMargin;
     height += [self slk_typingIndicatorHeight];
