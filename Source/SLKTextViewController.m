@@ -20,7 +20,7 @@ NSString * const SLKKeyboardDidShowNotification =       @"SLKKeyboardDidShowNoti
 NSString * const SLKKeyboardWillHideNotification =      @"SLKKeyboardWillHideNotification";
 NSString * const SLKKeyboardDidHideNotification =       @"SLKKeyboardDidHideNotification";
 
-CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
+CGFloat const SLKAutoCompletionViewDefaultHeight = 150.0;
 
 @interface SLKTextViewController ()
 {
