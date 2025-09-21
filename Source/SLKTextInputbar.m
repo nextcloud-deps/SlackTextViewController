@@ -774,7 +774,10 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         
         self.leftButtonWC.constant = zero;
         self.leftButtonHC.constant = zero;
-        self.leftMarginWC.constant = zero;
+
+        // Don't set the leftMarginWC to zero, as that would also ignore the safe area
+        self.leftMarginWC.constant = self.contentInset.left - self.defaultInsets.left;
+
         self.leftButtonBottomMarginC.constant = zero;
         self.rightButtonWC.constant = zero;
         self.rightButtonHC.constant = zero;
