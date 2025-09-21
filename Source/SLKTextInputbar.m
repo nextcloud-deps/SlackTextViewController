@@ -248,20 +248,6 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         [_editorContentView addSubview:self.editorTitle];
         [_editorContentView addSubview:self.editorLeftButton];
         [_editorContentView addSubview:self.editorRightButton];
-        
-        NSDictionary *views = @{@"label": self.editorTitle,
-                                @"leftButton": self.editorLeftButton,
-                                @"rightButton": self.editorRightButton,
-                                };
-        
-        NSDictionary *metrics = @{@"left" : @(self.contentInset.left),
-                                  @"right" : @(self.contentInset.right)
-                                  };
-        
-        [_editorContentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(left)-[leftButton(60)]-(left)-[label(>=0)]-(right)-[rightButton(60)]-(<=right)-|" options:0 metrics:metrics views:views]];
-        [_editorContentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[leftButton]|" options:0 metrics:metrics views:views]];
-        [_editorContentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[rightButton]|" options:0 metrics:metrics views:views]];
-        [_editorContentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[label]|" options:0 metrics:metrics views:views]];
     }
     return _editorContentView;
 }
@@ -512,6 +498,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     
     // Add new constraints
     [self removeConstraints:self.constraints];
+    [self.editorContentView removeConstraints:self.editorContentView.constraints];
     [self slk_setupViewConstraints];
     [self setCounterPosition:_counterPosition];
     
@@ -714,6 +701,24 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 
 - (void)slk_setupViewConstraints
 {
+    NSDictionary *metrics = @{
+        @"top" : @(self.contentInset.top),
+        @"left" : @(self.contentInset.left),
+        @"right" : @(self.contentInset.right),
+        @"buttonMargin" : @(MIN(self.contentInset.left, self.contentInset.right)),
+    };
+
+    NSDictionary *viewsEditor = @{
+        @"label": self.editorTitle,
+        @"leftButton": self.editorLeftButton,
+        @"rightButton": self.editorRightButton,
+    };
+
+    [_editorContentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(left)-[leftButton(60)]-(<=buttonMargin)-[label(>=0)]-(buttonMargin)-[rightButton(60)]-(<=right)-|" options:0 metrics:metrics views:viewsEditor]];
+    [_editorContentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[leftButton]|" options:0 metrics:metrics views:viewsEditor]];
+    [_editorContentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[rightButton]|" options:0 metrics:metrics views:viewsEditor]];
+    [_editorContentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[label]|" options:0 metrics:metrics views:viewsEditor]];
+
     NSDictionary *views = @{@"textView": self.textView,
                             @"leftButton": self.leftButton,
                             @"rightButton": self.rightButton,
@@ -722,13 +727,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
                             @"contentView": self.contentView,
                             @"typingView": self.typingView
                             };
-    
-    NSDictionary *metrics = @{@"top" : @(self.contentInset.top),
-                              @"left" : @(self.contentInset.left),
-                              @"right" : @(self.contentInset.right),
-                              @"buttonMargin" : @(MIN(self.contentInset.left, self.contentInset.right)),
-                              };
-    
+
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(left)-[leftButton(0)]-(<=buttonMargin)-[textView]-(buttonMargin)-[rightButton(0)]-(right)-|" options:0 metrics:metrics views:views]];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(>=0)-[leftButton(0)]-(0@750)-|" options:0 metrics:metrics views:views]];
     [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(>=0)-[rightButton(0)]-(<=0)-|" options:0 metrics:metrics views:views]];
