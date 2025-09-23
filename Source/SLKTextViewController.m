@@ -2148,8 +2148,12 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[scrollView]|" options:0 metrics:nil views:views]];
     [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[autoCompletionView]|" options:0 metrics:nil views:views]];
     [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[replyProxyView]|" options:0 metrics:nil views:views]];
-    [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[textInputbar]|" options:0 metrics:nil views:views]];
-    
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.textInputbar.leftAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leftAnchor],
+        [self.textInputbar.rightAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.rightAnchor],
+    ]];
+
     self.scrollViewHC = [self.view slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.scrollViewProxy secondItem:nil];
     self.autoCompletionViewHC = [self.view slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.autoCompletionView secondItem:nil];
     self.replyViewHC = [self.view slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.replyProxyView secondItem:nil];
