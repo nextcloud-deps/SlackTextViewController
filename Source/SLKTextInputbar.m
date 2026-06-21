@@ -130,6 +130,8 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     [self slk_registerTo:self.layer forSelector:@selector(position)];
     [self slk_registerTo:self.leftButton.imageView forSelector:@selector(image)];
     [self slk_registerTo:self.rightButton.titleLabel forSelector:@selector(font)];
+
+    self.accessibilityIdentifier = @"SLKTextInputbar";
 }
 
 
@@ -464,8 +466,6 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 
 - (void)setBackgroundColor:(UIColor *)color
 {
-    self.barTintColor = color;
-
     self.editorContentView.backgroundColor = color;
 }
 
