@@ -62,6 +62,9 @@ UIKIT_EXTERN NSString * const SLKTextInputbarContentSizeDidChangeNotification;
 /** The inner padding to use when laying out content in the view. Default is {5, 8, 5, 8}. */
 @property (nonatomic, assign) UIEdgeInsets contentInset;
 
+/** The minimum size of the left and right button, so they keep an accessible touch target even with a small image. Default is {44, 44}. */
+@property (nonatomic, assign) CGSize minimumButtonSize;
+
 /** The minimum height based on the intrinsic content size's. */
 @property (nonatomic, readonly) CGFloat minimumInputbarHeight;
 
@@ -85,6 +88,16 @@ UIKIT_EXTERN NSString * const SLKTextInputbarContentSizeDidChangeNotification;
  */
 - (instancetype)initWithTextViewClass:(Class)textViewClass;
 - (instancetype)initWithTextViewClass:(Class)textViewClass withTypingIndicatorViewClass:(Class)typingIndicatorClass;
+
+
+/**
+ Recalculates the size and position of the left and right button.
+
+ Their image is observed to do this automatically, but that observation is bound to the imageView of the button
+ at the time it was set up. UIKit recreates that imageView when the button is given a UIButtonConfiguration, so
+ call this after changing the image of such a button.
+ */
+- (void)invalidateButtonSizes;
 
 
 #pragma mark - Text Editing

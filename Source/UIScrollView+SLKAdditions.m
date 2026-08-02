@@ -26,10 +26,21 @@
 
 - (BOOL)slk_canScroll
 {
-    if (self.contentSize.height > CGRectGetHeight(self.frame)) {
+    if (self.contentSize.height + [self slk_bottomInset] > CGRectGetHeight(self.frame)) {
         return YES;
     }
     return NO;
+}
+
+- (CGFloat)slk_bottomInset
+{
+    // Content covered by e.g. a translucent text input bar is reserved using the bottom content inset,
+    // so it needs to be taken into account when scrolling to (or detecting) the bottom
+    if (@available(iOS 11.0, *)) {
+        return self.adjustedContentInset.bottom;
+    }
+
+    return self.contentInset.bottom;
 }
 
 - (BOOL)slk_isAtTop
@@ -52,7 +63,7 @@
 
 - (CGRect)slk_bottomRect
 {
-    return CGRectMake(0.0, self.contentSize.height - CGRectGetHeight(self.bounds), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+    return CGRectMake(0.0, self.contentSize.height + [self slk_bottomInset] - CGRectGetHeight(self.bounds), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
 }
 
 - (void)slk_stopScrolling

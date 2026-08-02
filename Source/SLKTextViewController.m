@@ -41,6 +41,11 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 @property (nonatomic, strong) NSLayoutConstraint *autoCompletionViewHC;
 @property (nonatomic, strong) NSLayoutConstraint *keyboardHC;
 
+// The scrollView's bottom edge is pinned to the top of the reply view by default. When the scrollView extends
+// behind the text input bar, that constraint is replaced by the one pinning it to the bottom of the view.
+@property (nonatomic, strong) NSLayoutConstraint *scrollViewBottomToReplyViewC;
+@property (nonatomic, strong) NSLayoutConstraint *scrollViewBottomToViewC;
+
 // YES if the user is moving the keyboard with a gesture
 @property (nonatomic, assign, getter = isMovingKeyboard) BOOL movingKeyboard;
 
@@ -235,7 +240,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (void)viewDidLayoutSubviews
 {
     [super viewDidLayoutSubviews];
-    
+
     // Make sure that the background view of textInputBar (UIToolBar)
     // covers the safe area bottom gap.
     if (@available(iOS 11.0, *)) {
@@ -413,7 +418,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 {
     // Let's first detect keyboard special states such as external keyboard, undocked or split layouts.
     [self slk_detectKeyboardStatesInNotification:notification];
-    
+
     if ([self ignoreTextInputbarAdjustment]) {
         return [self slk_appropriateBottomMargin];
     }
@@ -477,12 +482,71 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 {
     CGFloat scrollViewHeight = CGRectGetHeight(self.view.bounds);
 
+    if (self.scrollViewExtendsBehindTextInputbar) {
+        // The scrollView always covers the whole view, even behind the keyboard. Everything covering it is
+        // reserved using the bottom content inset instead, see -slk_appropriateScrollViewBottomInset.
+        //
+        // Note: Resizing it together with the keyboard does not work. On dismissal the scrollView is resized
+        // before its safe area insets are restored, and in that moment UIKit clamps the content offset to a
+        // maximum that is a safe area too small. That offset is never restored, leaving the content behind the
+        // text input bar.
+        return scrollViewHeight;
+    }
+
     scrollViewHeight -= self.keyboardHC.constant;
     scrollViewHeight -= self.textInputbarHC.constant;
     scrollViewHeight -= self.autoCompletionViewHC.constant;
     scrollViewHeight -= self.replyViewHC.constant;
     if (scrollViewHeight < 0) return 0;
     else return scrollViewHeight;
+}
+
+- (void)slk_updateScrollViewBottomConstraint
+{
+    BOOL extendsBehindTextInputbar = self.scrollViewExtendsBehindTextInputbar;
+
+    if (self.scrollViewBottomToReplyViewC.active == !extendsBehindTextInputbar) {
+        return;
+    }
+
+    // Never leave the scrollView without a bottom anchor, so deactivate first
+    if (extendsBehindTextInputbar) {
+        self.scrollViewBottomToReplyViewC.active = NO;
+        self.scrollViewBottomToViewC.active = YES;
+    }
+    else {
+        self.scrollViewBottomToViewC.active = NO;
+        self.scrollViewBottomToReplyViewC.active = YES;
+    }
+}
+
+- (CGFloat)slk_appropriateScrollViewBottomInset
+{
+    if (!self.scrollViewExtendsBehindTextInputbar) {
+        return 0.0;
+    }
+
+    // Reserve the space of everything covering the scrollView at its bottom edge. Since the scrollView reaches
+    // down to the bottom of the view, that starts with whatever is below the text input bar: the keyboard, or
+    // the bottom margin (e.g. the home indicator) when no keyboard is visible.
+    CGFloat bottomInset = self.keyboardHC.constant;
+    bottomInset += self.textInputbarHC.constant;
+    bottomInset += self.replyViewHC.constant;
+    bottomInset += self.autoCompletionViewHC.constant;
+
+    // The scrollView covers the bottom safe area of the view completely and adds it to its adjusted content
+    // inset on its own, so it must not be reserved twice
+    if (@available(iOS 11.0, *)) {
+        if (self.scrollViewProxy.contentInsetAdjustmentBehavior != UIScrollViewContentInsetAdjustmentNever) {
+            bottomInset -= self.view.safeAreaInsets.bottom;
+        }
+    }
+
+    if (bottomInset < 0) {
+        return 0.0;
+    }
+
+    return bottomInset;
 }
 
 - (CGFloat)slk_topBarsHeight
@@ -607,6 +671,21 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     self.scrollViewProxy.transform = inverted ? CGAffineTransformMake(1, 0, 0, -1, 0, 0) : CGAffineTransformIdentity;
 }
 
+- (void)setScrollViewExtendsBehindTextInputbar:(BOOL)scrollViewExtendsBehindTextInputbar
+{
+    if (_scrollViewExtendsBehindTextInputbar == scrollViewExtendsBehindTextInputbar) {
+        return;
+    }
+
+    _scrollViewExtendsBehindTextInputbar = scrollViewExtendsBehindTextInputbar;
+
+    if (self.isViewLoaded) {
+        [self slk_updateScrollViewBottomConstraint];
+        [self slk_updateViewConstraints];
+        [self slk_adjustContentConfigurationIfNeeded];
+    }
+}
+
 - (void)setBounces:(BOOL)bounces
 {
     _bounces = bounces;
@@ -724,7 +803,10 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         CGPoint newOffset = CGPointMake(0, self.scrollViewProxy.contentOffset.y + inputBarHeightDelta);
         self.textInputbarHC.constant = inputbarHeight;
         self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
-        
+
+        // Make sure the reserved space at the bottom of the scrollView grew/shrunk before adjusting its content offset
+        [self slk_adjustContentConfigurationIfNeeded];
+
         if (animated) {
             
             BOOL bounces = self.bounces && [self.textView isFirstResponder];
@@ -1084,7 +1166,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     // We want these rects in the correct coordinate space as well.
     CGRect convertBegin = [baseView convertRect:beginRect fromView:nil];
     CGRect convertEnd = [baseView convertRect:endRect fromView:nil];
-    
+
     if ([notification.name isEqualToString:UIKeyboardWillShowNotification]) {
         if (convertEnd.origin.y >= viewBounds.size.height) {
             _externalKeyboardDetected = YES;
@@ -1103,7 +1185,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     // to take the y-position additionally into account to correctly detect undocked keyboards
     CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
     CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen));
-    
+
     if (SLK_IS_IPAD && (CGRectGetMaxY(convertEnd) + yPositionOnScreen) < CGRectGetMaxY(screenBounds)) {
         
         // The keyboard is undocked or split (iPad Only)
@@ -1117,7 +1199,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (void)slk_adjustContentConfigurationIfNeeded
 {
     UIEdgeInsets contentInset = self.scrollViewProxy.contentInset;
-    
+
     // When inverted, we need to substract the top bars height (generally status bar + navigation bar's) to align the top of the
     // scrollView correctly to its top edge.
     if (self.inverted) {
@@ -1125,9 +1207,9 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         contentInset.top = contentInset.bottom > 0.0 ? 0.0 : contentInset.top;
     }
     else {
-        contentInset.bottom = 0.0;
+        contentInset.bottom = [self slk_appropriateScrollViewBottomInset];
     }
-    
+
     self.scrollViewProxy.contentInset = contentInset;
     self.scrollViewProxy.scrollIndicatorInsets = contentInset;
 }
@@ -1203,7 +1285,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 - (void)slk_willShowOrHideKeyboard:(NSNotification *)notification
 {
     SLKKeyboardStatus status = [self slk_keyboardStatusForNotification:notification];
-    
+
     // Skips if the view isn't visible.
     if (!self.isViewVisible) {
         return;
@@ -1283,15 +1365,30 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     {
         // Content Offset correction if not inverted and not auto-completing.
         if (!self.isInverted && !self.isAutoCompleting) {
-            
+
+            // Read the content offset before anything else. Reserving less space at the bottom lowers the maximum
+            // content offset, which makes UIKit clamp the current one right away. Correcting that clamped offset
+            // by the keyboard delta again would scroll the content twice as far.
+            CGPoint contentOffset = scrollView.contentOffset;
+
+            // Make sure the reserved space at the bottom of the scrollView is up to date before correcting its offset
+            [self slk_adjustContentConfigurationIfNeeded];
+
             CGFloat scrollViewHeight = self.scrollViewHC.constant;
             CGFloat keyboardHeight = self.keyboardHC.constant;
             CGSize contentSize = scrollView.contentSize;
-            CGPoint contentOffset = scrollView.contentOffset;
-            
-            CGFloat newOffset = MIN(contentSize.height - scrollViewHeight,
+
+            // The adjusted content inset is up to date here: it was just recalculated above and the frame of the
+            // scrollView (and with it its safe area) does not change with the keyboard
+            CGFloat maximumOffset = contentSize.height - scrollViewHeight;
+
+            if (@available(iOS 11.0, *)) {
+                maximumOffset += scrollView.adjustedContentInset.bottom;
+            }
+
+            CGFloat newOffset = MIN(maximumOffset,
                                     contentOffset.y + keyboardHeight - previousKeyboardHeight);
-            
+
             scrollView.contentOffset = CGPointMake(contentOffset.x, newOffset);
         }
         
@@ -1490,8 +1587,15 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     CGFloat height = view.isVisible ? systemLayoutSizeHeight : 0.0;
     
     self.replyViewHC.constant = height;
-    self.scrollViewHC.constant -= height;
-    
+
+    if (self.scrollViewExtendsBehindTextInputbar) {
+        // The reply view overlays the scrollView, so only the reserved space at its bottom changes
+        [self slk_adjustContentConfigurationIfNeeded];
+    }
+    else {
+        self.scrollViewHC.constant -= height;
+    }
+
     if (view.isVisible) {
         view.hidden = NO;
     }
@@ -2143,7 +2247,10 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
                             @"textInputbar": self.textInputbar
                             };
     
-    [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[scrollView(0@750)][replyProxyView(0)]-0@999-[textInputbar(0)]|" options:0 metrics:nil views:views]];
+    // The scrollView's bottom edge is set up explicitly (see below), so it can be exchanged when the scrollView
+    // should extend behind the text input bar
+    [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[scrollView(0@750)]" options:0 metrics:nil views:views]];
+    [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:[replyProxyView(0)]-0@999-[textInputbar(0)]|" options:0 metrics:nil views:views]];
     [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(>=0)-[autoCompletionView(0@750)][replyProxyView]" options:0 metrics:nil views:views]];
     [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[scrollView]|" options:0 metrics:nil views:views]];
     [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[autoCompletionView]|" options:0 metrics:nil views:views]];
@@ -2159,7 +2266,14 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     self.replyViewHC = [self.view slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.replyProxyView secondItem:nil];
     self.textInputbarHC = [self.view slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.textInputbar secondItem:nil];
     self.keyboardHC = [self.view slk_constraintForAttribute:NSLayoutAttributeBottom firstItem:self.view secondItem:self.textInputbar];
-    
+
+    // The scrollView's height constraint is optional (750), its frame is determined by its bottom edge. By default
+    // that is the top of the reply view, when extending behind the text input bar it is the bottom of the view.
+    self.scrollViewBottomToReplyViewC = [self.scrollViewProxy.bottomAnchor constraintEqualToAnchor:self.replyProxyView.topAnchor];
+    self.scrollViewBottomToViewC = [self.scrollViewProxy.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor];
+    self.scrollViewBottomToReplyViewC.active = YES;
+
+    [self slk_updateScrollViewBottomConstraint];
     [self slk_updateViewConstraints];
 }
 
