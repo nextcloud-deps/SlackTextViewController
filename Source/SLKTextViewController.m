@@ -46,6 +46,9 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 @property (nonatomic, strong) NSLayoutConstraint *scrollViewBottomToReplyViewC;
 @property (nonatomic, strong) NSLayoutConstraint *scrollViewBottomToViewC;
 
+// YES while the height of the typing indicator is being applied to the inputbar
+@property (nonatomic, assign, getter = isUpdatingTypingIndicatorHeight) BOOL updatingTypingIndicatorHeight;
+
 // YES if the user is moving the keyboard with a gesture
 @property (nonatomic, assign, getter = isMovingKeyboard) BOOL movingKeyboard;
 
@@ -790,34 +793,46 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     if (self.isTextInputbarHidden) {
         return;
     }
-    
+
     [_textInputbar layoutIfNeeded];
     CGFloat inputbarHeight = _textInputbar.appropriateHeight;
-    
+
     _textInputbar.rightButton.enabled = [self canPressRightButton];
     _textInputbar.editorRightButton.enabled = [self canPressRightButton];
-    
+
     if (inputbarHeight != self.textInputbarHC.constant)
     {
         CGFloat inputBarHeightDelta = inputbarHeight - self.textInputbarHC.constant;
         CGPoint newOffset = CGPointMake(0, self.scrollViewProxy.contentOffset.y + inputBarHeightDelta);
+
+        // A typing indicator the content scrolls behind covers it instead of pushing it away, so the content
+        // keeps its position - and nothing scrolls back when the indicator disappears again. The composer
+        // still pushes it, so the message being written doesn't cover the last messages.
+        BOOL adjustsContentOffset = !self.isInverted;
+
+        if (self.scrollViewExtendsBehindTextInputbar && self.isUpdatingTypingIndicatorHeight) {
+            adjustsContentOffset = NO;
+        }
+
         self.textInputbarHC.constant = inputbarHeight;
         self.scrollViewHC.constant = [self slk_appropriateScrollViewHeight];
 
-        // Make sure the reserved space at the bottom of the scrollView grew/shrunk before adjusting its content offset
-        [self slk_adjustContentConfigurationIfNeeded];
-
         if (animated) {
-            
+
             BOOL bounces = self.bounces && [self.textView isFirstResponder];
-            
+
             __weak typeof(self) weakSelf = self;
-            
+
             [self.view slk_animateLayoutIfNeededWithBounce:bounces
                                                    options:UIViewAnimationOptionCurveEaseInOut|UIViewAnimationOptionLayoutSubviews|UIViewAnimationOptionBeginFromCurrentState
                                                 animations:^{
-                                                    if (!self.isInverted) {
-                                                        self.scrollViewProxy.contentOffset = newOffset;
+                                                    // Reserving less space at the bottom lowers the maximum content
+                                                    // offset, so UIKit clamps the current one right away. Inside the
+                                                    // animation that clamp moves with the input bar instead of jumping.
+                                                    [weakSelf slk_adjustContentConfigurationIfNeeded];
+
+                                                    if (adjustsContentOffset) {
+                                                        weakSelf.scrollViewProxy.contentOffset = newOffset;
                                                     }
                                                     if (weakSelf.textInputbar.isEditing) {
                                                         [weakSelf.textView slk_scrollToCaretPositonAnimated:NO];
@@ -825,6 +840,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
                                                 }];
         }
         else {
+            [self slk_adjustContentConfigurationIfNeeded];
             [self.view layoutIfNeeded];
         }
     }
@@ -1536,8 +1552,14 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
         return;
     }
 
+    // The inputbar posts this notification when the typing indicator changed its height. Flagged for the whole
+    // update, since -textDidUpdate: is re-entered while it lays out the inputbar.
+    self.updatingTypingIndicatorHeight = YES;
+
     // Animated only if the view already appeared.
     [self textDidUpdate:self.isViewVisible];
+
+    self.updatingTypingIndicatorHeight = NO;
 }
 
 - (void)slk_didChangeTextViewSelectedRange:(NSNotification *)notification

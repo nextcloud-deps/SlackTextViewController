@@ -820,6 +820,8 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         self.rightButtonWC.constant = zero;
         self.rightButtonHC.constant = zero;
         self.rightMarginWC.constant = zero;
+
+        [self slk_updateButtonVisibility];
     }
     else {
         self.editorContentViewHC.constant = zero;
@@ -829,9 +831,11 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
             self.leftButtonHC.constant = zero;
             self.rightButtonHC.constant = zero;
 
+            [self slk_updateButtonVisibility];
+
             return;
         }
-        
+
         CGSize leftButtonSize = [self.leftButton imageForState:self.leftButton.state].size;
         CGSize rightButtonSize = [self.rightButton imageForState:self.rightButton.state].size;
         
@@ -852,7 +856,17 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         float rightButtonHeight = (rightButtonSize.height >= self.minimumButtonSize.height) ? rightButtonSize.height : self.minimumButtonSize.height;
         self.rightButtonHC.constant = roundf(rightButtonHeight);
         self.rightButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - rightButtonHeight) / 2.0) + self.slk_textViewHeight / 2.0;
+
+        [self slk_updateButtonVisibility];
     }
+}
+
+- (void)slk_updateButtonVisibility
+{
+    // Sizing a button to zero does not necessarily hide it: a UIButtonConfiguration draws its background
+    // (a glass capsule for example) outside of the button's bounds.
+    self.leftButton.hidden = (self.leftButtonWC.constant <= 0.0 || self.leftButtonHC.constant <= 0.0);
+    self.rightButton.hidden = (self.rightButtonWC.constant <= 0.0 || self.rightButtonHC.constant <= 0.0);
 }
 
 
