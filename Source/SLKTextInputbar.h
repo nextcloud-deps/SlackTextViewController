@@ -65,6 +65,10 @@ UIKIT_EXTERN NSString * const SLKTextInputbarContentSizeDidChangeNotification;
 /** The minimum size of the left and right button, so they keep an accessible touch target even with a small image. Default is {44, 44}. */
 @property (nonatomic, assign) CGSize minimumButtonSize;
 
+/** YES if the left and right button stay in place while editing, instead of being replaced by the buttons of the
+ editor content view. Use this together with an editorContentViewHeight of 0 to edit in the input bar itself. Default is NO. */
+@property (nonatomic, assign) BOOL keepsButtonsWhileEditing;
+
 /** The minimum height based on the intrinsic content size's. */
 @property (nonatomic, readonly) CGFloat minimumInputbarHeight;
 

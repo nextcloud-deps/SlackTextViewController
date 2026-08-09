@@ -805,13 +805,15 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 - (void)slk_updateConstraintConstants
 {
     CGFloat zero = 0.0;
-    
-    self.textViewBottomMarginC.constant = self.slk_bottomMargin;
 
-    if (self.isEditing)
+    self.textViewBottomMarginC.constant = self.slk_bottomMargin;
+    self.editorContentViewHC.constant = self.isEditing ? self.editorContentViewHeight : zero;
+
+    // While editing, the buttons are replaced by the ones of the editor content view
+    BOOL hidesButtons = (self.isEditing && !self.keepsButtonsWhileEditing) || self->_hidden;
+
+    if (hidesButtons)
     {
-        self.editorContentViewHC.constant = self.editorContentViewHeight;
-        
         self.leftButtonWC.constant = zero;
         self.leftButtonHC.constant = zero;
         self.leftMarginWC.constant = zero;
@@ -824,18 +826,6 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         [self slk_updateButtonVisibility];
     }
     else {
-        self.editorContentViewHC.constant = zero;
-
-        // When the inputbar is hidden, we need to hide the buttons as well
-        if (self->_hidden) {
-            self.leftButtonHC.constant = zero;
-            self.rightButtonHC.constant = zero;
-
-            [self slk_updateButtonVisibility];
-
-            return;
-        }
-
         CGSize leftButtonSize = [self.leftButton imageForState:self.leftButton.state].size;
         CGSize rightButtonSize = [self.rightButton imageForState:self.rightButton.state].size;
         
