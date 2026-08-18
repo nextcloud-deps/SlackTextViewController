@@ -96,6 +96,14 @@ NS_CLASS_AVAILABLE_IOS(7_0) @interface SLKTextViewController : UIViewController 
  */
 @property (nonatomic, assign, getter = isInverted) BOOL inverted;
 
+/**
+ YES if the scrollView should extend behind the text input bar (and the reply view) instead of ending at its top edge. Default is NO.
+ When enabled, the scrollView keeps its full height (minus the keyboard) and the area covered by the text input bar is
+ reserved using the scrollView's bottom content inset instead. Use this for a translucent/glass text input bar,
+ so the content scrolls underneath it.
+ */
+@property (nonatomic, assign) BOOL scrollViewExtendsBehindTextInputbar;
+
 /** YES if the view controller is presented inside of a popover controller. If YES, the keyboard won't move the text input bar and tapping on the tableView/collectionView will not cause the keyboard to be dismissed. This property is compatible only with iPad. */
 @property (nonatomic, assign, getter = isPresentedInPopover) BOOL presentedInPopover;
 

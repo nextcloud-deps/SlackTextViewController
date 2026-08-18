@@ -19,8 +19,6 @@
 NSString * const SLKTextInputbarDidMoveNotification                 = @"SLKTextInputbarDidMoveNotification";
 NSString * const SLKTextInputbarContentSizeDidChangeNotification    = @"SLKTextInputbarContentSizeDidChangeNotification";
 
-CGFloat const SLKTextInputbarMinButtonWidth         = 44.0;
-CGFloat const SLKTextInputbarMinButtonHeight        = 44.0;
 CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 
 @interface SLKTextInputbar ()
@@ -40,6 +38,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 @property (nonatomic, strong) NSLayoutConstraint *typingIndicatorViewHC;
 @property (nonatomic, strong) NSLayoutConstraint *typingIndicatorViewTextViewPaddingConstraint;
 @property (nonatomic, strong) NSArray *charCountLabelVCs;
+@property (nonatomic, strong) NSArray *slk_layoutConstraints;
 
 @property (nonatomic, assign) UIEdgeInsets defaultInsets;
 
@@ -49,6 +48,11 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 
 @property (nonatomic, strong) Class textViewClass;
 @property (nonatomic, strong) Class typingIndicatorClass;
+
+// The objects we actually did register as an observer to. UIKit recreates these helper views for example when
+// assigning a UIButtonConfiguration, so we can't rely on asking the buttons for them again when unregistering.
+@property (nonatomic, weak) UIImageView *observedLeftButtonImageView;
+@property (nonatomic, weak) UILabel *observedRightButtonTitleLabel;
 
 @property (nonatomic, getter=isHidden) BOOL hidden; // Required override
 
@@ -104,6 +108,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     
     self.autoHideRightButton = YES;
     self.editorContentViewHeight = 38.0;
+    self.minimumButtonSize = CGSizeMake(44.0, 44.0);
     self.defaultInsets = UIEdgeInsetsMake(5.0, 8.0, 5.0, 8.0);
     self.contentInset = _defaultInsets;
 
@@ -127,9 +132,12 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     
     [self slk_registerNotifications];
     
+    self.observedLeftButtonImageView = self.leftButton.imageView;
+    self.observedRightButtonTitleLabel = self.rightButton.titleLabel;
+
     [self slk_registerTo:self.layer forSelector:@selector(position)];
-    [self slk_registerTo:self.leftButton.imageView forSelector:@selector(image)];
-    [self slk_registerTo:self.rightButton.titleLabel forSelector:@selector(font)];
+    [self slk_registerTo:self.observedLeftButtonImageView forSelector:@selector(image)];
+    [self slk_registerTo:self.observedRightButtonTitleLabel forSelector:@selector(font)];
 
     self.accessibilityIdentifier = @"SLKTextInputbar";
 }
@@ -436,7 +444,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     }
     
     CGFloat width = [self.rightButton intrinsicContentSize].width;
-    width = (width >= SLKTextInputbarMinButtonWidth) ? width : SLKTextInputbarMinButtonWidth;
+    width = (width >= self.minimumButtonSize.width) ? width : self.minimumButtonSize.width;
     return width;
 }
 
@@ -483,6 +491,18 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     [self layoutIfNeeded];
 }
 
+- (void)setMinimumButtonSize:(CGSize)minimumButtonSize
+{
+    if (CGSizeEqualToSize(self.minimumButtonSize, minimumButtonSize)) {
+        return;
+    }
+
+    _minimumButtonSize = minimumButtonSize;
+
+    [self slk_updateConstraintConstants];
+    [self setNeedsLayout];
+}
+
 - (void)setContentInset:(UIEdgeInsets)insets
 {
     if (UIEdgeInsetsEqualToEdgeInsets(self.contentInset, insets)) {
@@ -495,9 +515,10 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     }
     
     _contentInset = insets;
-    
-    // Add new constraints
-    [self removeConstraints:self.constraints];
+
+    // Add new constraints. Only remove the constraints we created ourselves, others might have been added
+    // by the owner of this view (e.g. to position a background view behind the textView or the buttons).
+    [self removeConstraints:self.slk_layoutConstraints ? : self.constraints];
     [self.editorContentView removeConstraints:self.editorContentView.constraints];
     [self slk_setupViewConstraints];
     [self setCounterPosition:_counterPosition];
@@ -566,6 +587,15 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     }
     
     [self addConstraints:self.charCountLabelVCs];
+}
+
+
+#pragma mark - Button sizing
+
+- (void)invalidateButtonSizes
+{
+    [self slk_updateConstraintConstants];
+    [self setNeedsLayout];
 }
 
 
@@ -701,6 +731,8 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
 
 - (void)slk_setupViewConstraints
 {
+    NSArray *foreignConstraints = self.constraints;
+
     NSDictionary *metrics = @{
         @"top" : @(self.contentInset.top),
         @"left" : @(self.contentInset.left),
@@ -752,26 +784,36 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     self.leftButtonHC = [self slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.leftButton secondItem:nil];
     self.leftButtonBottomMarginC = [self slk_constraintForAttribute:NSLayoutAttributeBottom firstItem:self secondItem:self.leftButton];
 
-    self.leftMarginWC = [[self slk_constraintsForAttribute:NSLayoutAttributeLeading] firstObject];
-    
     self.rightButtonWC = [self slk_constraintForAttribute:NSLayoutAttributeWidth firstItem:self.rightButton secondItem:nil];
     self.rightButtonHC = [self slk_constraintForAttribute:NSLayoutAttributeHeight firstItem:self.rightButton secondItem:nil];
-    self.rightMarginWC = [[self slk_constraintsForAttribute:NSLayoutAttributeTrailing] firstObject];
-    
+
     self.rightButtonTopMarginC = [self slk_constraintForAttribute:NSLayoutAttributeTop firstItem:self.rightButton secondItem:self];
     self.rightButtonBottomMarginC = [self slk_constraintForAttribute:NSLayoutAttributeBottom firstItem:self secondItem:self.rightButton];
+
+    // Remember the constraints we own, so -setContentInset: can rebuild them without touching foreign ones
+    NSMutableArray *layoutConstraints = [self.constraints mutableCopy];
+    [layoutConstraints removeObjectsInArray:foreignConstraints];
+    self.slk_layoutConstraints = layoutConstraints;
+
+    // The margins are looked up by attribute only, so search our own constraints instead of all of them.
+    // Otherwise constraints added by the owner of this view (e.g. to position a background view behind the
+    // textView or the buttons) could be picked up here instead.
+    self.leftMarginWC = [[layoutConstraints filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"firstAttribute = %d", NSLayoutAttributeLeading]] firstObject];
+    self.rightMarginWC = [[layoutConstraints filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"firstAttribute = %d", NSLayoutAttributeTrailing]] firstObject];
 }
 
 - (void)slk_updateConstraintConstants
 {
     CGFloat zero = 0.0;
-    
-    self.textViewBottomMarginC.constant = self.slk_bottomMargin;
 
-    if (self.isEditing)
+    self.textViewBottomMarginC.constant = self.slk_bottomMargin;
+    self.editorContentViewHC.constant = self.isEditing ? self.editorContentViewHeight : zero;
+
+    // While editing, the buttons are replaced by the ones of the editor content view
+    BOOL hidesButtons = (self.isEditing && !self.keepsButtonsWhileEditing) || self->_hidden;
+
+    if (hidesButtons)
     {
-        self.editorContentViewHC.constant = self.editorContentViewHeight;
-        
         self.leftButtonWC.constant = zero;
         self.leftButtonHC.constant = zero;
         self.leftMarginWC.constant = zero;
@@ -780,25 +822,17 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         self.rightButtonWC.constant = zero;
         self.rightButtonHC.constant = zero;
         self.rightMarginWC.constant = zero;
+
+        [self slk_updateButtonVisibility];
     }
     else {
-        self.editorContentViewHC.constant = zero;
-
-        // When the inputbar is hidden, we need to hide the buttons as well
-        if (self->_hidden) {
-            self.leftButtonHC.constant = zero;
-            self.rightButtonHC.constant = zero;
-
-            return;
-        }
-        
         CGSize leftButtonSize = [self.leftButton imageForState:self.leftButton.state].size;
         CGSize rightButtonSize = [self.rightButton imageForState:self.rightButton.state].size;
         
         if (leftButtonSize.width > 0) {
-            leftButtonSize.width = (leftButtonSize.width >= SLKTextInputbarMinButtonWidth) ? leftButtonSize.width : SLKTextInputbarMinButtonWidth;
+            leftButtonSize.width = (leftButtonSize.width >= self.minimumButtonSize.width) ? leftButtonSize.width : self.minimumButtonSize.width;
 
-            float leftButtonHeight = (leftButtonSize.height >= SLKTextInputbarMinButtonHeight) ? leftButtonSize.height : SLKTextInputbarMinButtonHeight;
+            float leftButtonHeight = (leftButtonSize.height >= self.minimumButtonSize.height) ? leftButtonSize.height : self.minimumButtonSize.height;
             self.leftButtonHC.constant = roundf(leftButtonHeight);
             self.leftButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - leftButtonHeight) / 2.0) + self.slk_textViewHeight / 2.0;
         }
@@ -809,10 +843,20 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
         self.rightButtonWC.constant = [self slk_appropriateRightButtonWidth];
         self.rightMarginWC.constant = [self slk_appropriateRightButtonMargin];
 
-        float rightButtonHeight = (rightButtonSize.height >= SLKTextInputbarMinButtonHeight) ? rightButtonSize.height : SLKTextInputbarMinButtonHeight;
+        float rightButtonHeight = (rightButtonSize.height >= self.minimumButtonSize.height) ? rightButtonSize.height : self.minimumButtonSize.height;
         self.rightButtonHC.constant = roundf(rightButtonHeight);
         self.rightButtonBottomMarginC.constant = roundf((self.intrinsicContentSize.height - rightButtonHeight) / 2.0) + self.slk_textViewHeight / 2.0;
+
+        [self slk_updateButtonVisibility];
     }
+}
+
+- (void)slk_updateButtonVisibility
+{
+    // Sizing a button to zero does not necessarily hide it: a UIButtonConfiguration draws its background
+    // (a glass capsule for example) outside of the button's bounds.
+    self.leftButton.hidden = (self.leftButtonWC.constant <= 0.0 || self.leftButtonHC.constant <= 0.0);
+    self.rightButton.hidden = (self.rightButtonWC.constant <= 0.0 || self.rightButtonHC.constant <= 0.0);
 }
 
 
@@ -841,7 +885,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
             [[NSNotificationCenter defaultCenter] postNotificationName:SLKTextInputbarDidMoveNotification object:self userInfo:@{@"origin": [NSValue valueWithCGPoint:self.previousOrigin]}];
         }
     }
-    else if ([object isEqual:self.leftButton.imageView] && [keyPath isEqualToString:NSStringFromSelector(@selector(image))]) {
+    else if ([object isEqual:self.observedLeftButtonImageView] && [keyPath isEqualToString:NSStringFromSelector(@selector(image))]) {
         
         UIImage *newImage = change[NSKeyValueChangeNewKey];
         UIImage *oldImage = change[NSKeyValueChangeOldKey];
@@ -850,7 +894,7 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
             [self slk_updateConstraintConstants];
         }
     }
-    else if ([object isEqual:self.rightButton.titleLabel] && [keyPath isEqualToString:NSStringFromSelector(@selector(font))]) {
+    else if ([object isEqual:self.observedRightButtonTitleLabel] && [keyPath isEqualToString:NSStringFromSelector(@selector(font))]) {
         
         [self slk_updateConstraintConstants];
     }
@@ -900,8 +944,8 @@ CGFloat const SLKTextInputbarTypingIndicatorHeight  = 24.0;
     [self slk_unregisterNotifications];
     
     [self slk_unregisterFrom:self.layer forSelector:@selector(position)];
-    [self slk_unregisterFrom:self.leftButton.imageView forSelector:@selector(image)];
-    [self slk_unregisterFrom:self.rightButton.titleLabel forSelector:@selector(font)];
+    [self slk_unregisterFrom:self.observedLeftButtonImageView forSelector:@selector(image)];
+    [self slk_unregisterFrom:self.observedRightButtonTitleLabel forSelector:@selector(font)];
 
     [self.typingView removeObserver:self forKeyPath:@"visible"];
 }
