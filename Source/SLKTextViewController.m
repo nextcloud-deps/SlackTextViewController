@@ -444,7 +444,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
     // In case our view is opened on a modal, we need to take the position of our view in the baseView (relative to the window) into account
     CGRect frameOnBaseView = [baseView convertRect:self.view.frame toView:self.view.window];
-    CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
+    CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:self.view.window.windowScene.screen.coordinateSpace];
     CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen) - CGRectGetMinY(frameOnBaseView));
 
     CGFloat keyboardHeight = MAX(0.0, viewHeight - keyboardMinY + yPositionOnScreen);
@@ -561,6 +561,13 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     
     CGFloat topBarsHeight = CGRectGetHeight(self.navigationController.navigationBar.frame);
     
+    // TODO: Modernization - SLK_IS_LANDSCAPE compares [UIScreen mainScreen].bounds, which describes the display and
+    // not this controller's window, so the status bar height is added back in Split View, Slide Over and Stage Manager
+    // where it should not be. The intent is "the status bar is hidden because vertical space is tight", which
+    // self.traitCollection.verticalSizeClass == UIUserInterfaceSizeClassCompact expresses directly and also makes
+    // SLK_IS_IPHONE and SLK_IS_IOS8_AND_HIGHER redundant. Only touch this together with the other SLK_IS_LANDSCAPE
+    // sites so the macro can be deleted. slk_topBarsHeight is called from layout, so no trait-change registration is
+    // needed; the surrounding UIRectEdgeTop, form sheet and popover checks must stay as they are.
     if ((SLK_IS_IPHONE && SLK_IS_LANDSCAPE && SLK_IS_IOS8_AND_HIGHER) ||
         (SLK_IS_IPAD && self.modalPresentationStyle == UIModalPresentationFormSheet) ||
         self.isPresentedInPopover) {
@@ -1173,7 +1180,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
     // iOS 8 fixes the whole coordinate system issue for us, but iOS 7 doesn't rotate the app window coordinate space.
     UIView *baseView = self.view.window.rootViewController.view;
     
-    CGRect screenBounds = [UIScreen mainScreen].bounds;
+    CGRect screenBounds = ((UIScreen *)notification.object).bounds;
     
     // Convert the main screen bounds into the correct coordinate space but ignore the origin.
     CGRect viewBounds = [self.view convertRect:self.view.window.bounds fromView:nil];
@@ -1199,7 +1206,7 @@ CGFloat const SLKAutoCompletionViewDefaultHeight = 140.0;
 
     // Find out how the view is positioned on screen. When in slide over mode, we need
     // to take the y-position additionally into account to correctly detect undocked keyboards
-    CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:[UIScreen mainScreen].coordinateSpace];
+    CGRect frameOnScreen = [baseView convertRect:baseView.frame toCoordinateSpace:((UIScreen *)notification.object).coordinateSpace];
     CGFloat yPositionOnScreen = MAX(0.0, CGRectGetMinY(frameOnScreen));
 
     if (SLK_IS_IPAD && (CGRectGetMaxY(convertEnd) + yPositionOnScreen) < CGRectGetMaxY(screenBounds)) {
