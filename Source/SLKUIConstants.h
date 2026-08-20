@@ -6,6 +6,14 @@
 //  Licence: MIT-Licence
 //
 
+// TODO: Modernization - SLK_IS_LANDSCAPE reads [UIScreen mainScreen].bounds, so it reports the shape of the whole
+// display rather than of the window the text view actually lives in. Under Split View, Slide Over, Stage Manager and
+// iPhone Mirroring that is the wrong answer. It cannot be fixed in the macro itself: a macro has no `self`, and the
+// replacement differs per call site - a view should compare its own bounds (or read
+// self.traitCollection.verticalSizeClass), a view controller self.view.bounds. Migrate each call site to a local check
+// and delete this macro. Live call sites: SLKTextView.m -maxNumberOfLines and SLKTextViewController.m
+// -slk_topBarsHeight; the third (SLKTextViewController.m -slk_didPostSLKKeyboardNotification:) sits behind
+// !SLK_IS_IOS8_AND_HIGHER and is unreachable on any supported OS, so it can be dropped along with the macro.
 #define SLK_IS_LANDSCAPE         ([UIScreen mainScreen].bounds.size.width > [UIScreen mainScreen].bounds.size.height)
 #define SLK_IS_IPAD              ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
 #define SLK_IS_IPHONE            ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)

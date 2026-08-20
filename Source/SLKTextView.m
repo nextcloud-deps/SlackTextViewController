@@ -193,12 +193,18 @@ static NSString *const SLKTextViewGenericFormattingSelectorPrefix = @"slk_format
 {
     NSUInteger numberOfLines = _maxNumberOfLines;
     
+    // TODO: Modernization - SLK_IS_LANDSCAPE compares [UIScreen mainScreen].bounds, which describes the display and
+    // not this text view's window, so the halving is wrong in Split View, Slide Over and Stage Manager. The intent is
+    // "vertical space is tight", which self.traitCollection.verticalSizeClass == UIUserInterfaceSizeClassCompact
+    // expresses directly and also makes SLK_IS_IPHONE redundant. Only touch this together with the other
+    // SLK_IS_LANDSCAPE sites so the macro can be deleted. maxNumberOfLines is read on demand, so no trait-change
+    // registration is needed here - but whoever caches its result must invalidate on UITraitVerticalSizeClass.
     if (SLK_IS_LANDSCAPE && SLK_IS_IPHONE) {
         numberOfLines /= 2.0; // Half size on larger iPhone
     }
     
     if (self.isDynamicTypeEnabled) {
-        NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
+        NSString *contentSizeCategory = self.traitCollection.preferredContentSizeCategory;
         CGFloat pointSizeDifference = SLKPointSizeDifferenceForCategory(contentSizeCategory);
         
         CGFloat factor = pointSizeDifference/self.initialFontSize;
@@ -505,7 +511,7 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
 
 - (void)setFont:(UIFont *)font
 {
-    NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
+    NSString *contentSizeCategory = self.traitCollection.preferredContentSizeCategory;
 
     [self setFont:font pointSize:font.pointSize withContentSizeCategory:contentSizeCategory];
     
@@ -534,7 +540,7 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
     
     _dynamicTypeEnabled = dynamicTypeEnabled;
     
-    NSString *contentSizeCategory = [UIScreen mainScreen].traitCollection.preferredContentSizeCategory;
+    NSString *contentSizeCategory = self.traitCollection.preferredContentSizeCategory;
 
     [self setFont:self.font pointSize:self.initialFontSize withContentSizeCategory:contentSizeCategory];
 }
