@@ -28,6 +28,9 @@ static NSString *const SLKTextViewGenericFormattingSelectorPrefix = @"slk_format
 // The label used as placeholder
 @property (nonatomic, strong) UILabel *placeholderLabel;
 
+// The color of the placeholder, the label itself only shows it while the text view is empty
+@property (nonatomic, strong) UIColor *placeholderTextColor;
+
 // The initial font point size, used for dynamic type calculations
 @property (nonatomic) CGFloat initialFontSize;
 
@@ -118,8 +121,10 @@ static NSString *const SLKTextViewGenericFormattingSelectorPrefix = @"slk_format
 {
     [super layoutSubviews];
     
-    self.placeholderLabel.hidden = [self slk_shouldHidePlaceholder];
-    
+    // Cleared instead of hidden, a UIScrollEdgeElementContainerInteraction only draws its edge effect below visible labels
+    self.placeholderLabel.hidden = (self.placeholder.length == 0);
+    self.placeholderLabel.textColor = [self slk_shouldClearPlaceholderText] ? [UIColor clearColor] : self.placeholderColor;
+
     if (!self.placeholderLabel.hidden) {
         
         [UIView performWithoutAnimation:^{
@@ -157,7 +162,7 @@ static NSString *const SLKTextViewGenericFormattingSelectorPrefix = @"slk_format
 
 - (UIColor *)placeholderColor
 {
-    return self.placeholderLabel.textColor;
+    return self.placeholderTextColor ?: [UIColor lightGrayColor];
 }
 
 - (UIFont *)placeholderFont
@@ -370,12 +375,9 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
     return NO;
 }
 
-- (BOOL)slk_shouldHidePlaceholder
+- (BOOL)slk_shouldClearPlaceholderText
 {
-    if (self.placeholder.length == 0 || self.text.length > 0) {
-        return YES;
-    }
-    return NO;
+    return self.text.length > 0;
 }
 
 - (CGRect)slk_placeholderRectThatFits:(CGRect)bounds
@@ -404,7 +406,8 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
 
 - (void)setPlaceholderColor:(UIColor *)color
 {
-    self.placeholderLabel.textColor = color;
+    self.placeholderTextColor = color;
+    [self setNeedsLayout];
 }
 
 - (void)setPlaceholderNumberOfLines:(NSInteger)numberOfLines
@@ -884,7 +887,9 @@ SLKPastableMediaType SLKPastableMediaTypeFromNSString(NSString *string)
         return;
     }
     
-    if (self.placeholderLabel.hidden != [self slk_shouldHidePlaceholder]) {
+    BOOL placeholderTextCleared = [self.placeholderLabel.textColor isEqual:[UIColor clearColor]];
+
+    if (placeholderTextCleared != [self slk_shouldClearPlaceholderText]) {
         [self setNeedsLayout];
     }
     
